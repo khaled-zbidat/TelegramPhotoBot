@@ -1,6 +1,6 @@
 from pathlib import Path
 from matplotlib.image import imread, imsave
-
+import random
 
 def rgb2gray(rgb):
     r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
@@ -51,17 +51,104 @@ class Img:
             self.data[i] = res
 
     def rotate(self):
-        # TODO remove the `raise` below, and write your implementation
-        raise NotImplementedError()
+        """
+        Rotates the image 90 degrees clockwise
+        """
+        height = len(self.data)
+        width = len(self.data[0])
+        
+        # Create a new matrix for the rotated image
+        rotated_data = []
+        for j in range(width):
+            new_row = []
+            for i in range(height - 1, -1, -1):
+                new_row.append(self.data[i][j])
+            rotated_data.append(new_row)
+        
+        self.data = rotated_data
 
     def salt_n_pepper(self):
-        # TODO remove the `raise` below, and write your implementation
-        raise NotImplementedError()
+        """
+        Add salt and pepper noise to the image
+        
+        Parameters:
+        salt_prob (float): Probability of salt noise (white pixels)
+        pepper_prob (float): Probability of pepper noise (black pixels)
+        """        
+        height = len(self.data)
+        width = len(self.data[0])
+        
+        # Apply salt (white) noise
+        num_salt = int(height * width * salt_prob)
+        for _ in range(num_salt):
+            y = random.randint(0, height - 1)
+            x = random.randint(0, width - 1)
+            self.data[y][x] = 255  # White pixel
+        
+        # Apply pepper (black) noise
+        num_pepper = int(height * width * pepper_prob)
+        for _ in range(num_pepper):
+            y = random.randint(0, height - 1)
+            x = random.randint(0, width - 1)
+            self.data[y][x] = 0  # Black pixel
+
+    def segment(self, threshold=128):
+        """
+        Segment the image by thresholding (binary segmentation)
+        
+        Parameters:
+        threshold (int): Pixel values above this will be white, below will be black
+        """
+        height = len(self.data)
+        width = len(self.data[0])
+        
+        for i in range(height):
+            for j in range(width):
+                if self.data[i][j] > threshold:
+                    self.data[i][j] = 255  # White
+                else:
+                    self.data[i][j] = 0  # Black
 
     def concat(self, other_img, direction='horizontal'):
-        # TODO remove the `raise` below, and write your implementation
-        raise NotImplementedError()
-
-    def segment(self):
-        # TODO remove the `raise` below, and write your implementation
-        raise NotImplementedError()
+        """
+        Concatenate this image with another image
+        
+        Parameters:
+        other_img (Img): The other image to concatenate with
+        direction (str): 'horizontal' or 'vertical'
+        
+        Note: This method assumes that other_img is an instance of Img class
+        """
+        if direction not in ['horizontal', 'vertical']:
+            raise ValueError("Direction must be 'horizontal' or 'vertical'")
+        
+        # Convert other_img to grayscale if it's not already
+        other_data = other_img.data
+        
+        if direction == 'horizontal':
+            # Check if heights are compatible
+            if len(self.data) != len(other_data):
+                # If heights are different, resize to the smaller height
+                min_height = min(len(self.data), len(other_data))
+                self.data = self.data[:min_height]
+                other_data = other_data[:min_height]
+            
+            # Concatenate horizontally
+            result = []
+            for i in range(len(self.data)):
+                result.append(self.data[i] + other_data[i])
+            
+        else:  # vertical
+            # Check if widths are compatible
+            if len(self.data[0]) != len(other_data[0]):
+                # If widths are different, resize to the smaller width
+                min_width = min(len(self.data[0]), len(other_data[0]))
+                for i in range(len(self.data)):
+                    self.data[i] = self.data[i][:min_width]
+                for i in range(len(other_data)):
+                    other_data[i] = other_data[i][:min_width]
+            
+            # Concatenate vertically
+            result = self.data + other_data
+        
+        self.data = result
