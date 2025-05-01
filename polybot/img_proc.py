@@ -67,13 +67,13 @@ class Img:
         
         self.data = rotated_data
 
-    def salt_n_pepper(self):
+    def salt_n_pepper(self, salt_prob=0.01, pepper_prob=0.01):
         """
         Add salt and pepper noise to the image
         
         Parameters:
-        salt_prob (float): Probability of salt noise (white pixels)
-        pepper_prob (float): Probability of pepper noise (black pixels)
+        salt_prob (float): Probability of salt noise (white pixels), default 0.01
+        pepper_prob (float): Probability of pepper noise (black pixels), default 0.01
         """        
         height = len(self.data)
         width = len(self.data[0])
