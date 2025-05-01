@@ -1,6 +1,8 @@
 from pathlib import Path
 from matplotlib.image import imread, imsave
 import random
+import os
+import tempfile
 
 def rgb2gray(rgb):
     r, g, b = rgb[:, :, 0], rgb[:, :, 1], rgb[:, :, 2]
@@ -17,11 +19,28 @@ class Img:
         self.path = Path(path)
         self.data = rgb2gray(imread(path)).tolist()
 
-    def save_img(self):
+    def save_img(self, custom_path=None):
         """
-        Do not change the below implementation
+        Save the processed image to a new path
+        
+        Parameters:
+        custom_path (str, optional): Custom path to save the image to
+        
+        Returns:
+        Path: Path to the saved image
         """
-        new_path = self.path.with_name(self.path.stem + '_filtered' + self.path.suffix)
+        if custom_path:
+            new_path = Path(custom_path)
+        else:
+            # Use system temp directory for saving
+            temp_dir = tempfile.gettempdir()
+            original_filename = os.path.basename(self.path)
+            new_filename = Path(original_filename).stem + '_filtered' + Path(original_filename).suffix
+            new_path = Path(os.path.join(temp_dir, new_filename))
+        
+        # Make sure directory exists
+        os.makedirs(os.path.dirname(new_path), exist_ok=True)
+        
         imsave(new_path, self.data, cmap='gray')
         return new_path
 

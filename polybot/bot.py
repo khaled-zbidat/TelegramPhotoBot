@@ -2,6 +2,7 @@ import telebot
 from loguru import logger
 import os
 import time
+import tempfile
 from telebot.types import InputFile
 from polybot.img_proc import Img
 
@@ -33,23 +34,32 @@ class Bot:
 
     def download_user_photo(self, msg):
         """
-        Downloads the photos that sent to the Bot to `photos` directory (should be existed)
-        :return:
+        Downloads the photos that sent to the Bot to a temp directory
+        :return: Path to the downloaded photo
         """
         if not self.is_current_msg_photo(msg):
             raise RuntimeError(f'Message content of type \'photo\' expected')
 
         file_info = self.telegram_bot_client.get_file(msg['photo'][-1]['file_id'])
         data = self.telegram_bot_client.download_file(file_info.file_path)
-        folder_name = file_info.file_path.split('/')[0]
-
+        
+        # Use system temp directory instead of hardcoded path
+        temp_dir = tempfile.gettempdir()
+        folder_name = os.path.join(temp_dir, file_info.file_path.split('/')[0])
+        
         if not os.path.exists(folder_name):
             os.makedirs(folder_name)
-
-        with open(file_info.file_path, 'wb') as photo:
+        
+        # Create full path with temp directory
+        file_path = os.path.join(temp_dir, file_info.file_path)
+        
+        # Ensure directory exists for the file
+        os.makedirs(os.path.dirname(file_path), exist_ok=True)
+        
+        with open(file_path, 'wb') as photo:
             photo.write(data)
 
-        return file_info.file_path
+        return file_path
 
     def send_photo(self, chat_id, img_path):
         if not os.path.exists(img_path):
@@ -73,7 +83,6 @@ class QuoteBot(Bot):
         if msg["text"] != 'Please don\'t quote me':
             self.send_text_with_quote(msg['chat']['id'], msg["text"], quoted_msg_id=msg["message_id"])
 
-#I have added this 
 class ImageProcessingBot(Bot):
     def handle_message(self, msg):
         """
@@ -164,8 +173,11 @@ class ImageProcessingBot(Bot):
                     self.send_text(msg['chat']['id'], "Concat filter requires two images and is not fully supported yet.")
                     return
                 
-                # Save the processed image
-                new_image_path = img.save_img()
+                # Save the processed image to a temp directory
+                temp_dir = tempfile.gettempdir()
+                output_filename = os.path.basename(photo_path).split('.')[0] + '_filtered.jpg'
+                output_path = os.path.join(temp_dir, output_filename)
+                new_image_path = img.save_img(output_path)
                 logger.info(f'Processed image saved to: {new_image_path}')
                 
                 # Send the processed image back to the user
@@ -173,7 +185,7 @@ class ImageProcessingBot(Bot):
                 
             except Exception as e:
                 logger.error(f"Error processing image: {str(e)}")
-                self.send_text(msg['chat']['id'], f"Something went wrong while processing your image. Please try again.")
+                self.send_text(msg['chat']['id'], f"Something went wrong while processing your image: {str(e)}")
         
         # If it's a text message (not a photo), provide instructions
         elif 'text' in msg:
