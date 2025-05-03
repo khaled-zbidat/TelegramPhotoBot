@@ -87,18 +87,16 @@ class ImageProcessingBot(Bot):
     def handle_message(self, msg):
         """
         Handles incoming messages, specifically looking for photos with captions
-        to apply image processing filters
-        """
+        to apply image processing filters.
+         """
         logger.info(f'Incoming message: {msg}')
-        
-        # Check if this is a new user/chat, send greeting if it is
-        # You could enhance this by storing chat IDs in a database for more persistent tracking
+    
+    # Send welcome message
         self.send_text(msg['chat']['id'], f"Hello {msg['chat']['first_name']}! Welcome to the Image Processing Bot.")
         
-        # Check if the message contains a photo
+        # If it's a photo message
         if self.is_current_msg_photo(msg):
             try:
-                # Check if caption exists
                 if 'caption' not in msg or not msg['caption']:
                     self.send_text(
                         msg['chat']['id'], 
@@ -107,90 +105,86 @@ class ImageProcessingBot(Bot):
                     )
                     return
                 
-                # Get the caption and process accordingly
                 caption = msg['caption'].strip().lower()
+
+                # Define available filters (all lowercase for comparison)
+                available_filters = ['blur', 'contour', 'rotate', 'segment', 'salt and pepper', 'concat']
                 
+                # Match the beginning of the caption to one of the available filters
+                matched_filter = None
+                params = []
+                
+                for f in available_filters:
+                    if caption.startswith(f):
+                        matched_filter = f
+                        params = caption[len(f):].strip().split()
+                        break
+
+                if not matched_filter:
+                    self.send_text(
+                        msg['chat']['id'], 
+                        f"Invalid filter name. Available filters are: {', '.join([f.title() for f in available_filters])}"
+                    )
+                    return
+
                 # Download the user's photo
                 photo_path = self.download_user_photo(msg)
                 logger.info(f'Photo downloaded to: {photo_path}')
-                
-                # Parse caption to determine filter and parameters
-                filter_name, *params = caption.split()
-                filter_name = filter_name.capitalize()  # Standardize filter name
-                
-                available_filters = ['Blur', 'Contour', 'Rotate', 'Segment', 'Salt and pepper', 'Concat']
-                
-                if filter_name not in [f.lower() for f in available_filters]:
-                    self.send_text(
-                        msg['chat']['id'], 
-                        f"Invalid filter name. Available filters are: {', '.join(available_filters)}"
-                    )
-                    return
-                
-                # Process the image with the appropriate filter
+
+                # Initialize Img instance
                 img = Img(photo_path)
-                self.send_text(msg['chat']['id'], f"Applying {filter_name} filter...")
-                
-                # Apply filter based on the caption
-                if filter_name.lower() == 'blur':
-                    # Check if blur level parameter was provided
-                    blur_level = 16  # Default value
+                self.send_text(msg['chat']['id'], f"Applying {matched_filter.title()} filter...")
+
+                # Apply the selected filter
+                if matched_filter == 'blur':
+                    blur_level = 16
                     if params and params[0].isdigit():
                         blur_level = int(params[0])
                     img.blur(blur_level)
-                    
-                elif filter_name.lower() == 'contour':
+
+                elif matched_filter == 'contour':
                     img.contour()
-                    
-                elif filter_name.lower() == 'rotate':
-                    if 'rotate' in img.__dir__():
-                        # Check if rotation count parameter was provided
-                        rotation_count = 1  # Default value
-                        if params and params[0].isdigit():
-                            rotation_count = int(params[0])
-                        
-                        for _ in range(rotation_count):
-                            img.rotate()
-                    else:
-                        self.send_text(msg['chat']['id'], "Rotate filter is not implemented yet.")
-                        return
-                    
-                elif filter_name.lower() == 'segment':
-                    if 'segment' in img.__dir__():
+
+                elif matched_filter == 'rotate':
+                    rotation_count = 1
+                    if params and params[0].isdigit():
+                        rotation_count = int(params[0])
+                    for _ in range(rotation_count):
+                        img.rotate()
+
+                elif matched_filter == 'segment':
+                    if hasattr(img, 'segment'):
                         img.segment()
                     else:
                         self.send_text(msg['chat']['id'], "Segment filter is not implemented yet.")
                         return
-                    
-                elif filter_name.lower() in ['salt', 'salt and pepper']:
-                    if 'salt_n_pepper' in img.__dir__():
+
+                elif matched_filter == 'salt and pepper':
+                    if hasattr(img, 'salt_n_pepper'):
                         img.salt_n_pepper()
                     else:
                         self.send_text(msg['chat']['id'], "Salt and pepper filter is not implemented yet.")
                         return
-                    
-                elif filter_name.lower() == 'concat':
+
+                elif matched_filter == 'concat':
                     self.send_text(msg['chat']['id'], "Concat filter requires two images and is not fully supported yet.")
                     return
-                
-                # Save the processed image to a temp directory
+
+                # Save and send the filtered image
                 temp_dir = tempfile.gettempdir()
                 output_filename = os.path.basename(photo_path).split('.')[0] + '_filtered.jpg'
                 output_path = os.path.join(temp_dir, output_filename)
                 new_image_path = img.save_img(output_path)
                 logger.info(f'Processed image saved to: {new_image_path}')
-                
-                # Send the processed image back to the user
                 self.send_photo(msg['chat']['id'], new_image_path)
-                
+
             except Exception as e:
                 logger.error(f"Error processing image: {str(e)}")
                 self.send_text(msg['chat']['id'], f"Something went wrong while processing your image: {str(e)}")
-        
-        # If it's a text message (not a photo), provide instructions
+
+        # If it's a command or plain text
         elif 'text' in msg:
             if msg['text'].startswith('/'):
-                # Handle commands
                 if msg['text'] == '/start' or msg['text'] == '/help':
                     self.send_text(
                         msg['chat']['id'],
@@ -210,14 +204,13 @@ class ImageProcessingBot(Bot):
                         "Unknown command. Send /help for available options."
                     )
             else:
-                # Regular text message
                 self.send_text(
                     msg['chat']['id'],
                     "Please send me a photo with a caption to apply image filters.\n"
                     "Available filters: Blur, Contour, Rotate, Segment, Salt and pepper, Concat"
                 )
-        
-        # Neither photo nor text
+
+        # Unknown message type
         else:
             self.send_text(
                 msg['chat']['id'],
