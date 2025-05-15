@@ -6,6 +6,7 @@ import tempfile
 from telebot.types import InputFile
 #from polybot.img_proc import Img
 from polybot.img_proc import Img
+import requests  
 
 class Bot:
     def __init__(self, token, telegram_chat_url):
@@ -58,6 +59,23 @@ class ImageProcessingBot(Bot):
     def __init__(self, token, telegram_chat_url):
         super().__init__(token, telegram_chat_url)
         self.concat_buffer = {}  # Temporary state: {chat_id: first_image_path}
+    def send_to_yolo_service(self, image_path):
+        """
+        Send image to YOLO EC2 service for prediction and return response text
+        """
+        try:
+            url = "http://10.0.1.187:8667/predict"  # 🔁 TODO: Replace with actual IP and port// added private
+            with open(image_path, 'rb') as img_file:
+                files = {'image': img_file}
+                response = requests.post(url, files=files)
+            response.raise_for_status()
+            # return response.text
+            return response.json().get("prediction", "No prediction found")
+
+        except Exception as e:
+            logger.error(f"Failed to get prediction from YOLO EC2: {str(e)}")
+            return "Prediction failed due to server error."
+
 
     def handle_message(self, msg):
         logger.info(f'Incoming message: {msg}')
@@ -122,6 +140,12 @@ class ImageProcessingBot(Bot):
                     output_path = os.path.join(tempfile.gettempdir(), os.path.basename(photo_path).split('.')[0] + '_filtered.jpg')
                     new_image_path = img.save_img(output_path)
                     self.send_photo(chat_id, new_image_path)
+                    
+                    # ✅ NEW: Send to YOLO EC2 instance and show prediction
+
+                    self.send_text(chat_id, "Sending filtered image to YOLO prediction service...")
+                    prediction_result = self.send_to_yolo_service(new_image_path)
+                    self.send_text(chat_id, f"Prediction: {prediction_result}")
 
                 # Handle concat filter separately
                 else:
