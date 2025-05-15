@@ -64,7 +64,7 @@ class ImageProcessingBot(Bot):
         Send image to YOLO EC2 service for prediction and return response text
         """
         try:
-            url = "http://10.0.1.187:8667/predict"  # 🔁 TODO: Replace with actual IP and port// added private
+            url = "http://54.247.106.241:8667/predict"  # 🔁 TODO: Replace with actual IP and port// added private
             with open(image_path, 'rb') as img_file:
                 files = {'image': img_file}
                 response = requests.post(url, files=files)
