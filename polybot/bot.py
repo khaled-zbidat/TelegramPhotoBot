@@ -69,8 +69,8 @@ class ImageProcessingBot(Bot):
                 files = {'image': img_file}
                 response = requests.post(url, files=files)
             response.raise_for_status()
-            # return response.text
-            return response.json().get("prediction", "No prediction found")
+            return response.text
+            # return response.json().get("prediction", "No prediction found")
 
         except Exception as e:
             logger.error(f"Failed to get prediction from YOLO EC2: {str(e)}")
