@@ -351,3 +351,131 @@ Time to submit your solution for testing.
 [python_project_webhook2]: https://exit-zero-academy.github.io/DevOpsTheHardWayAssets/img/python_project_webhook2.png
 
 
+steps:
+Absolutely, Khaled. Here's a **complete summary** of everything you need to do to make your **Telegram bot run as a systemd service** and auto-restart correctly.
+
+---
+
+## ✅ Goal
+
+Run your Telegram bot located at `/home/ubuntu/TelegramPhotoBot/polybot/start.sh` as a **systemd service**, so that it:
+
+* Loads required environment variables
+* Activates a virtual environment
+* Starts the bot automatically
+* Restarts on failure
+
+---
+
+## 📁 1. Make the `start.sh` script executable
+
+```bash
+chmod +x /home/ubuntu/TelegramPhotoBot/polybot/start.sh
+```
+
+---
+
+## 🧠 2. Ensure `start.sh` has the correct contents
+
+Edit this file:
+
+```bash
+nano /home/ubuntu/TelegramPhotoBot/polybot/start.sh
+```
+
+And ensure it contains:
+
+```bash
+#!/bin/bash
+
+# Load environment variables
+set -a
+source /etc/telegram_bot_env
+set +a
+
+# Activate virtual environment
+source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
+
+# Start the bot
+python3 -m polybot.app
+```
+
+> ✅ Make sure `/etc/telegram_bot_env` exists and contains your needed environment variables (like the bot token, etc.)
+
+---
+
+## 🧾 3. Create the systemd service file
+
+Create the service file:
+
+```bash
+sudo nano /etc/systemd/system/telegrambot.service
+```
+
+Paste the following:
+
+```ini
+[Unit]
+Description=Telegram Photo Bot
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/TelegramPhotoBot
+ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start.sh
+Restart=on-failure
+EnvironmentFile=/etc/telegram_bot_env
+
+[Install]
+WantedBy=multi-user.target
+```
+
+> ✅ Make sure paths match your actual project structure
+> ✅ `User=ubuntu` should match the user that owns the bot directory and virtualenv
+
+---
+
+## 🔄 4. Reload systemd and start the service
+
+```bash
+sudo systemctl daemon-reload
+sudo systemctl enable telegrambot
+sudo systemctl start telegrambot
+```
+
+---
+
+## 🧪 5. Check if it worked
+
+```bash
+sudo systemctl status telegrambot
+```
+
+You should see:
+
+```
+Active: active (running)
+```
+
+If not, run:
+
+```bash
+journalctl -u telegrambot.service -n 50 --no-pager
+```
+
+This will show detailed logs of what went wrong.
+
+---
+
+## 🔁 6. Restarting the service after updating code
+
+If you change your bot code or the script, just run:
+
+```bash
+sudo systemctl restart telegrambot
+```
+
+---
+
+Let me know if you want to add logging or auto-ngrok as part of this too.
