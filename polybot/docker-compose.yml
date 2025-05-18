@@ -1,0 +1,10 @@
+version: "3.8"
+
+services:
+  polybot:
+    build: .
+    ports:
+      - "8443:8443"
+    restart: always
+    env_file:
+      - .env
