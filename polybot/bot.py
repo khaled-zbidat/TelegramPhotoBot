@@ -68,8 +68,11 @@ class ImageProcessingBot(Bot):
             with open(image_path, 'rb') as img_file:
                 files = {'file': img_file}
                 response = requests.post(url, files=files)
-            response.raise_for_status()
-            return response.text
+            response = requests.post(url, files=files, timeout=5)
+            if response.status_code == 200:
+                return response.text
+            else:
+                return "Prediction failed: YOLO service returned non-200 status."
             # return response.json().get("prediction", "No prediction found")
 
         except Exception as e:
