@@ -16,7 +16,7 @@ set +a
 
 # Activate virtual environment
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
-
+ngrok http --url=koi-suitable-closely.ngrok-free.app 8443
 # Run the app
 python3 -m polybot.app
 #ok
