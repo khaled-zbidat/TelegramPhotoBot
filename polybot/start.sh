@@ -19,3 +19,4 @@ source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 
 # Run the app
 python3 -m polybot.app
+#ok
