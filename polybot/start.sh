@@ -6,7 +6,7 @@ source /etc/telegram_bot_env
 set +a
 
 # Activate virtual environment
-source /home/ubuntu/TelegramPhotoBot/polybot/venv/bin/activate
+source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 
 # Check if ngrok is running on port 8443
 NGROK_PID=$(pgrep -f "ngrok http 8443")
