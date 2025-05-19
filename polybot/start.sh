@@ -7,7 +7,8 @@ set -a
 source /etc/telegram_bot_env
 set +a
 
-# Activate virtual environment
+SERVICE_NAME="telegrambot"
+# Activate virtual environment n
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 
 # Start ngrok if not running
@@ -39,3 +40,6 @@ curl -s -F "url=${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/" \
 
 echo "Starting bot..."
 python3 -m polybot.app
+
+echo "Restarting bot service..."
+sudo systemctl restart $SERVICE_NAME

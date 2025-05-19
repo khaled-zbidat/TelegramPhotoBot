@@ -1,6 +1,6 @@
 name: Project auto-testing
 on:
-  push:
+  pull_request:
     branches:
       - main
 
