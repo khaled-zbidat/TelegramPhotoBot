@@ -1,6 +1,6 @@
 #!/bin/bash
-
-# Load environment variables from secure file
+exec > /home/ubuntu/TelegramPhotoBot/polybot/bot.log 2>&1
+set -x
 set -a
 source /etc/telegram_bot_env
 set +a

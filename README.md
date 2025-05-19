@@ -1,3 +1,58 @@
+Certainly! Here are the essential systemctl commands to manage your telegrambot service on Ubuntu:
+
+🔄 Restart the Service
+To restart the telegrambot service:
+
+bash
+Copy
+Edit
+sudo systemctl restart telegrambot
+🔄 Reload the Service
+If the service supports reloading its configuration without a full restart:
+
+bash
+Copy
+Edit
+sudo systemctl reload telegrambot
+✅ Check the Service Status
+To view the current status of the telegrambot service:
+
+bash
+Copy
+Edit
+sudo systemctl status telegrambot
+📋 View Logs for the Service
+To monitor the logs of the telegrambot service in real-time:
+
+bash
+Copy
+Edit
+journalctl -u telegrambot -f
+⚙️ Enable the Service at Boot
+To ensure the telegrambot service starts automatically on boot:
+
+bash
+Copy
+Edit
+sudo systemctl enable telegrambot
+❌ Disable the Service at Boot
+To prevent the telegrambot service from starting automatically on boot:
+
+bash
+Copy
+Edit
+sudo systemctl disable telegrambot
+🔍 List All Services
+To list all systemd services:
+
+bash
+Copy
+Edit
+systemctl list-unit-files --type=service
+Let me know if you need assistance with creating a script to automate these commands or if you have any other questions!
+
+
+
 # The Polybot Service: Python Project [![][autotest_badge]][autotest_workflow]
 
 ## Background
