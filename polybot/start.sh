@@ -8,7 +8,7 @@ source /etc/telegram_bot_env
 set +a
 
 SERVICE_NAME="telegrambot"
-# Activate virtual environment
+# Activate virtual environment n
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 
 # Start ngrok if not running
