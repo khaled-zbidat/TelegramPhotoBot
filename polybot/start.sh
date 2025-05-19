@@ -2,15 +2,15 @@
 exec > /home/ubuntu/TelegramPhotoBot/polybot/bot.log 2>&1
 set -x
 
-# Load environment variables
+# Load environment variables from your actual env file
 set -a
 source /etc/telegram_bot_env
 set +a
 
-# Activate correct venv
+# Activate virtual environment
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 
-# Check if ngrok is running
+# Start ngrok if not running
 NGROK_PID=$(pgrep -f 'ngrok http 8443')
 if [ -z "$NGROK_PID" ]; then
     echo "Starting ngrok on port 8443..."
@@ -20,40 +20,22 @@ else
     echo "ngrok already running (PID $NGROK_PID)"
 fi
 
-# Update .env with ngrok URL
-ENV_FILE=/home/ubuntu/TelegramPhotoBot/polybot/.env
-sed -i '/^BOT_APP_URL=/d' "$ENV_FILE"
-echo "BOT_APP_URL=$BOT_APP_URL" >> "$ENV_FILE"
+# Get the ngrok public HTTPS URL
+NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url')
+echo "Ngrok public URL: $NGROK_URL"
+
+# Update /etc/telegram_bot_env with new BOT_APP_URL
+sudo sed -i '/^BOT_APP_URL=/d' /etc/telegram_bot_env
+echo "BOT_APP_URL=$NGROK_URL" | sudo tee -a /etc/telegram_bot_env
+
+# Reload updated environment
+set -a
+source /etc/telegram_bot_env
+set +a
+
+# Optionally update the Telegram webhook
+curl -s -F "url=${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/" \
+     https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook
 
 echo "Starting bot..."
 python3 -m polybot.app
-# cd /home/ubuntu/TelegramPhotoBot
-# python3 /home/ubuntu/TelegramPhotoBot/polybot/app.py
-
-# to run this after update  
-#chmod +x /home/ubuntu/TelegramPhotoBot/polybot/start.sh
-#sudo systemctl daemon-reload
-#sudo systemctl restart telegrambot
-
-
-# Start ngrok tunnel with your static domain, forwarding port 80
-
-#ngrok http --url=koi-suitable-closely.ngrok-free.app 8443
-# Wait a bit for ngrok to initialize
-#sleep 5
-
-# Start your bot container using Docker Compose in detached mode
-
-
-# Load environment variables from secure file
-# set -a
-# source /etc/telegram_bot_env
-# set +a
-
-# # Activate virtual environment
-# source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
-# ngrok http --url=koi-suitable-closely.ngrok-free.app 8443
-# #ngrok http 8443
-# # Run the app
-# python3 -m polybot.app
-# #ok
