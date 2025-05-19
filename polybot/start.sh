@@ -26,9 +26,14 @@ sed -i '/^BOT_APP_URL=/d' "$ENV_FILE"
 echo "BOT_APP_URL=$BOT_APP_URL" >> "$ENV_FILE"
 
 echo "Starting bot..."
-cd /home/ubuntu/TelegramPhotoBot/polybot
-python3 /home/ubuntu/TelegramPhotoBot/polybot/app.py
+python3 -m polybot.app
+# cd /home/ubuntu/TelegramPhotoBot
+# python3 /home/ubuntu/TelegramPhotoBot/polybot/app.py
 
+# to run this after update  
+#chmod +x /home/ubuntu/TelegramPhotoBot/polybot/start.sh
+#sudo systemctl daemon-reload
+#sudo systemctl restart telegrambot
 
 
 # Start ngrok tunnel with your static domain, forwarding port 80
