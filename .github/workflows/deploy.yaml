@@ -41,4 +41,8 @@ jobs:
           
       - name: Execute deployment script on EC2
         run: |
-          ssh ec2 "cd ~/${REPO_NAME} && bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}"
+          ssh ec2 "
+            cd ~/${REPO_NAME} &&
+            chmod +x polybot/start.sh &&
+            bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}
+          "
