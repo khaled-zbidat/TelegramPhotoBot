@@ -6,7 +6,7 @@ set -x
 set -a
 source /etc/telegram_bot_env
 set +a
-
+#just chekcing
 SERVICE_NAME="telegrambot"
 # Activate virtual environment n
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
