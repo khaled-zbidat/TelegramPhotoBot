@@ -46,7 +46,7 @@ jobs:
         run: |
           ssh ec2 "
             cd ~/${REPO_NAME}/polybot &&
-            chmod +x start_prod.sh &&
+            chmod +x start_dev.sh &&
             bash start_dev.sh ~/${REPO_NAME} ${{ secrets.TELEGRAM_TOKEN }} ${{ secrets.YOLO_URL_DEV }}  
           "
         
