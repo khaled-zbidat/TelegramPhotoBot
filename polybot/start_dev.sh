@@ -12,6 +12,9 @@ if [[ -z "$REPO_DIR" || -z "$TELEGRAM_BOT_TOKEN" || -z "$YOLO_URL" ]]; then
     if [[ -f "$ENV_FILE" ]]; then
         source "$ENV_FILE"
         REPO_DIR=${REPO_DIR:-/home/ubuntu/TelegramPhotoBot}  # fallback if missing
+        # Map the env file variables to script variables
+        TELEGRAM_BOT_TOKEN=${TELEGRAM_BOT_TOKEN:-$TELEGRAM_BOT_TOKEN}
+        YOLO_URL=${YOLO_URL:-$YOLO_SERVICE_URL}
     fi
 fi
 
@@ -51,8 +54,8 @@ Description=Telegram Photo Bot
 After=network.target
 
 [Service]
-ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh /home/ubuntu/TelegramPhotoBot YOUR_TELEGRAM_BOT_TOKEN YOUR_YOLO_URL
-WorkingDirectory=/home/ubuntu/TelegramPhotoBot
+ExecStart=/home/ubuntu/TelegramPhotoBot/venv/bin/python /home/ubuntu/TelegramPhotoBot/polybot/app.py
+WorkingDirectory=/home/ubuntu/TelegramPhotoBot/polybot
 Restart=always
 User=ubuntu
 EnvironmentFile=${ENV_FILE}
