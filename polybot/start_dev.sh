@@ -34,9 +34,8 @@ source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
 echo "✅ Activated virtual environment"
 
 # --- Ensure the systemd service exists ---
-if [ ! -f "$SERVICE_FILE" ]; then
-    echo "Creating systemd service: $SERVICE_NAME"
-    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
+echo "🛠️ Updating systemd service: $SERVICE_NAME"
+sudo tee "$SERVICE_FILE" > /dev/null <<EOF
 [Unit]
 Description=Telegram Photo Bot
 After=network.target
@@ -52,12 +51,11 @@ EnvironmentFile=${ENV_FILE}
 WantedBy=multi-user.target
 EOF
 
-    sudo systemctl daemon-reload
-    sudo systemctl enable $SERVICE_NAME
-    echo "✅ Systemd service $SERVICE_NAME created and enabled"
-else
-    echo "✅ Systemd service $SERVICE_NAME already exists"
-fi
+# Reload systemd and (re)enable the service
+sudo systemctl daemon-reload
+sudo systemctl enable $SERVICE_NAME
+echo "✅ Systemd service $SERVICE_NAME updated and enabled"
+
 
 # --- Start ngrok if not running ---
 NGROK_PID=$(pgrep -f 'ngrok http 8443')
