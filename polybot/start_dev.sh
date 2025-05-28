@@ -42,8 +42,8 @@ Description=Telegram Photo Bot
 After=network.target
 
 [Service]
-ExecStart=${REPO_DIR}/polybot/start_dev.sh ${REPO_DIR} ${TELEGRAM_BOT_TOKEN} ${YOLO_URL}
-WorkingDirectory=${REPO_DIR}
+ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh
+WorkingDirectory=/home/ubuntu/TelegramPhotoBot
 Restart=always
 User=ubuntu
 EnvironmentFile=${ENV_FILE}
