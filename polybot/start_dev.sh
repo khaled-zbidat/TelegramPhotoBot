@@ -1,14 +1,24 @@
 #!/bin/bash
-# exec > /home/ubuntu/TelegramPhotoBot/polybot/bot.log 2>&1
 set -x
 
-# --- Accept parameters ---
+# If vars not passed, try loading from ENV_FILE
 REPO_DIR="$1"
 TELEGRAM_BOT_TOKEN="$2"
 YOLO_URL="$3"
 
+# If CLI args are empty, load from .runtime_env
+if [[ -z "$REPO_DIR" || -z "$TELEGRAM_BOT_TOKEN" || -z "$YOLO_URL" ]]; then
+    ENV_FILE="$(dirname "$0")/.runtime_env"
+    if [[ -f "$ENV_FILE" ]]; then
+        source "$ENV_FILE"
+        REPO_DIR=${REPO_DIR:-/home/ubuntu/TelegramPhotoBot}  # fallback if missing
+    fi
+fi
+
+# Validate again
 if [[ -z "$REPO_DIR" || -z "$TELEGRAM_BOT_TOKEN" || -z "$YOLO_URL" ]]; then
     echo "Usage: $0 <REPO_DIR> <TELEGRAM_BOT_TOKEN> <YOLO_URL>"
+    echo "Or make sure .runtime_env file contains required variables."
     exit 1
 fi
 
