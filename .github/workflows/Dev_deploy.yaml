@@ -57,6 +57,34 @@ jobs:
             fi
           "
 
+      - name: Install system dependencies on EC2
+        run: |
+          ssh ec2 "
+            echo '🔧 Installing system dependencies...'
+            sudo apt update
+            sudo apt install -y python3 python3-pip python3-venv curl jq
+            echo '✅ System dependencies installed'
+          "
+
+      - name: Setup Python virtual environment on EC2
+        run: |
+          ssh ec2 "
+            cd ~/${REPO_NAME}
+            if [ ! -d 'venv' ]; then
+              echo '🐍 Creating Python virtual environment...'
+              python3 -m venv venv
+              source venv/bin/activate
+              if [ -f 'requirements.txt' ]; then
+                pip install -r requirements.txt
+                echo '✅ Dependencies installed'
+              else
+                echo '⚠️ No requirements.txt found'
+              fi
+            else
+              echo '✅ Virtual environment already exists'
+            fi
+          "
+
       - name: Debug pulled repo structure on EC2
         run: |
           ssh ec2 "
@@ -70,14 +98,10 @@ jobs:
             find ~/${REPO_NAME} -type f
           "
 
-
-
       - name: Execute deployment script on EC2
         run: |
           ssh ec2 "
             cd ~/${REPO_NAME}/polybot &&
             chmod +x start_dev.sh &&
-            bash start_dev.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}} ${{secrets.YOLO_URL_DEV}}
+            bash start_dev.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}} ${{secrets.YOLO_URL_DEV}} ${{secrets.YOUR_NGROK_TOKEN}}
           "
-
-        

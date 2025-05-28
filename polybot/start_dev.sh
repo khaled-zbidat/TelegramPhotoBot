@@ -5,6 +5,7 @@ set -x
 REPO_DIR="$1"
 TELEGRAM_BOT_TOKEN="$2"
 YOLO_URL="$3"
+NGROK_TOKEN="$4"
 
 # If CLI args are empty, load from .runtime_env
 if [[ -z "$REPO_DIR" || -z "$TELEGRAM_BOT_TOKEN" || -z "$YOLO_URL" ]]; then
@@ -20,7 +21,7 @@ fi
 
 # Validate again
 if [[ -z "$REPO_DIR" || -z "$TELEGRAM_BOT_TOKEN" || -z "$YOLO_URL" ]]; then
-    echo "Usage: $0 <REPO_DIR> <TELEGRAM_BOT_TOKEN> <YOLO_URL>"
+    echo "Usage: $0 <REPO_DIR> <TELEGRAM_BOT_TOKEN> <YOLO_URL> [NGROK_TOKEN]"
     echo "Or make sure .runtime_env file contains required variables."
     exit 1
 fi
@@ -73,29 +74,77 @@ sudo systemctl daemon-reload
 sudo systemctl enable $SERVICE_NAME
 echo "✅ Systemd service $SERVICE_NAME updated and enabled"
 
+# --- Install and setup ngrok ---
+echo "🔧 Setting up ngrok..."
+
+# Check if ngrok is installed
+if ! command -v ngrok &> /dev/null; then
+    echo "Installing ngrok..."
+    # Add ngrok GPG key and repository
+    curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+    echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+    sudo apt update && sudo apt install -y ngrok
+    echo "✅ ngrok installed"
+else
+    echo "✅ ngrok already installed"
+fi
+
+# Configure ngrok auth token if provided
+if [[ -n "$NGROK_TOKEN" ]]; then
+    echo "Configuring ngrok auth token..."
+    ngrok config add-authtoken "$NGROK_TOKEN"
+    echo "✅ ngrok auth token configured"
+else
+    echo "⚠️ No ngrok token provided - may hit rate limits"
+fi
+
+# Check if jq is installed (needed for parsing ngrok API)
+if ! command -v jq &> /dev/null; then
+    echo "Installing jq..."
+    sudo apt update && sudo apt install -y jq
+    echo "✅ jq installed"
+fi
+
 # --- Start ngrok if not running ---
 NGROK_PID=$(pgrep -f 'ngrok http 8443')
 if [ -z "$NGROK_PID" ]; then
     echo "Starting ngrok on port 8443..."
-    nohup ngrok http 8443 > /dev/null 2>&1 &
-    sleep 3
+    # Kill any existing ngrok processes first
+    pkill -f ngrok || true
+    sleep 1
+    # Start ngrok in background
+    ngrok http 8443 > /tmp/ngrok.log 2>&1 &
+    NGROK_PID=$!
+    echo "Started ngrok with PID: $NGROK_PID"
+    sleep 5  # Give ngrok more time to start
 else
     echo "ngrok already running (PID $NGROK_PID)"
 fi
 
 # --- Get ngrok public HTTPS URL ---
 NGROK_URL=""
-for i in {1..5}; do
-    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url' 2>/dev/null)
+for i in {1..10}; do
+    # Check if ngrok process is still running
+    if ! kill -0 $NGROK_PID 2>/dev/null; then
+        echo "❌ ngrok process died. Check /tmp/ngrok.log for errors:"
+        cat /tmp/ngrok.log
+        exit 1
+    fi
+    
+    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | jq -r '.tunnels[]? | select(.proto == "https") | .public_url' 2>/dev/null)
     if [[ -n "$NGROK_URL" && "$NGROK_URL" != "null" ]]; then
         break
     fi
-    echo "Waiting for ngrok to be ready... (attempt $i/5)"
+    echo "Waiting for ngrok to be ready... (attempt $i/10)"
     sleep 2
 done
 
 if [[ -z "$NGROK_URL" || "$NGROK_URL" == "null" ]]; then
-    echo "❌ Failed to get ngrok URL"
+    echo "❌ Failed to get ngrok URL after 10 attempts"
+    echo "ngrok log:"
+    cat /tmp/ngrok.log
+    echo "Trying to check ngrok status directly:"
+    curl -s http://127.0.0.1:4040/api/tunnels
     exit 1
 fi
 
