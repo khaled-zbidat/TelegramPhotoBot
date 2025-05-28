@@ -42,9 +42,13 @@ EOF
 
 echo "✅ Wrote environment variables to $ENV_FILE"
 
-# --- Activate python venv ---
-source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
-echo "✅ Activated virtual environment"
+# --- Activate python venv (skip if doesn't exist) ---
+if [ -f "/home/ubuntu/TelegramPhotoBot/venv/bin/activate" ]; then
+    source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
+    echo "✅ Activated virtual environment"
+else
+    echo "⚠️ Virtual environment not found, using system Python"
+fi
 
 # --- Ensure the systemd service exists ---
 echo "🛠️ Updating systemd service: $SERVICE_NAME"
@@ -54,7 +58,7 @@ Description=Telegram Photo Bot
 After=network.target
 
 [Service]
-ExecStart=/home/ubuntu/TelegramPhotoBot/venv/bin/python /home/ubuntu/TelegramPhotoBot/polybot/app.py
+ExecStart=/usr/bin/python3 /home/ubuntu/TelegramPhotoBot/polybot/app.py
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot/polybot
 Restart=always
 User=ubuntu
@@ -80,7 +84,21 @@ else
 fi
 
 # --- Get ngrok public HTTPS URL ---
-NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url')
+NGROK_URL=""
+for i in {1..5}; do
+    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url' 2>/dev/null)
+    if [[ -n "$NGROK_URL" && "$NGROK_URL" != "null" ]]; then
+        break
+    fi
+    echo "Waiting for ngrok to be ready... (attempt $i/5)"
+    sleep 2
+done
+
+if [[ -z "$NGROK_URL" || "$NGROK_URL" == "null" ]]; then
+    echo "❌ Failed to get ngrok URL"
+    exit 1
+fi
+
 echo "Ngrok public URL: $NGROK_URL"
 
 # --- Update BOT_APP_URL in the env file ---
@@ -95,9 +113,14 @@ source "$ENV_FILE"
 set +a
 
 # --- Set Telegram webhook ---
-curl -s -F "url=${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/" \
-     https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook
-echo "✅ Telegram webhook set to ${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/"
+if [[ -n "$NGROK_URL" && "$NGROK_URL" != "null" ]]; then
+    WEBHOOK_RESPONSE=$(curl -s -F "url=${NGROK_URL}/${TELEGRAM_BOT_TOKEN}/" \
+         https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook)
+    echo "Webhook response: $WEBHOOK_RESPONSE"
+    echo "✅ Telegram webhook set to ${NGROK_URL}/${TELEGRAM_BOT_TOKEN}/"
+else
+    echo "❌ Cannot set webhook - invalid ngrok URL"
+fi
 
 # --- Now Restart the systemd service ---
 echo "Restarting bot service..."
