@@ -20,7 +20,7 @@ jobs:
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.DEV_EC2_HOST }}
+          EC2_HOST: ${{ secrets.DEV_EC2_HOST}}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
         run: |
           mkdir -p ~/.ssh
@@ -46,7 +46,7 @@ jobs:
         run: |
           ssh ec2 "
             cd ~/${REPO_NAME}/polybot &&
-            chmod +x start.sh &&
-            bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}
+            chmod +x start_prod.sh &&
+            bash start_dev.sh ~/${REPO_NAME} ${{ secrets.TELEGRAM_TOKEN }} ${{ secrets.YOLO_URL_DEV }}  
           "
-
+        

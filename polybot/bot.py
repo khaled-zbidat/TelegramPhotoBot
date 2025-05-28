@@ -62,7 +62,8 @@ class ImageProcessingBot(Bot):
 
     def send_to_yolo_service(self, image_path):
         try:
-            url = "http://10.0.1.187:8667/predict"
+            yolo_url = os.getenv("YOLO_SERVICE_URL")
+            url = yolo_ur
             with open(image_path, 'rb') as img_file:
                 files = {'file': img_file}
                 response = requests.post(url, files=files, timeout=5)
