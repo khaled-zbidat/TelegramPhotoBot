@@ -1,12 +1,12 @@
 #!/bin/bash
-exec > /home/ubuntu/TelegramPhotoBot/polybot/bot.log 2>&1
+#exec > /home/ubuntu/TelegramPhotoBot/polybot/bot.log 2>&1
 set -x
-
+#name khaled
 # Load environment variables from your actual env file
 set -a
 source /etc/telegram_bot_env
 set +a
-
+#just chekcing
 SERVICE_NAME="telegrambot"
 # Activate virtual environment n
 source /home/ubuntu/TelegramPhotoBot/venv/bin/activate

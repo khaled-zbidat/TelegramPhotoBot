@@ -3,7 +3,7 @@ name: PolyBot Deploy
 on:
   push:
     branches:
-      - main
+      - 'dev'
   workflow_dispatch:
 
 env:
@@ -20,7 +20,7 @@ jobs:
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_HOST: ${{ secrets.DEV_EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
         run: |
           mkdir -p ~/.ssh
@@ -37,8 +37,16 @@ jobs:
       - name: Copy and checkout PR branch to EC2
         run: |
           # Clone repository if it doesn't exist, otherwise pull latest changes
-          ssh ec2 "if [ -d ~/${REPO_NAME} ]; then cd ~/${REPO_NAME} && git pull; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
+          ssh ec2 "if [ -d ~/${REPO_NAME} ]; then cd ~/${REPO_NAME} &&
+          git stash && 
+          git pull &&
+          echo '✅ Pulled successfully after stashing any local changes'; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
           
       - name: Execute deployment script on EC2
         run: |
-          ssh ec2 "cd ~/${REPO_NAME} && bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}"
+          ssh ec2 "
+            cd ~/${REPO_NAME}/polybot &&
+            chmod +x start.sh &&
+            bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}
+          "
+
