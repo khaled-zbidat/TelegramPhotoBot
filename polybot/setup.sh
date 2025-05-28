@@ -36,8 +36,8 @@ After=network.target
 
 [Service]
 Type=simple
-ExecStart=$REPO_DIR/venv/bin/python3 $REPO_DIR/polybot/app.py
-WorkingDirectory=$REPO_DIR/polybot
+ExecStart=$REPO_DIR/venv/bin/python3 -m polybot.app
+WorkingDirectory=$REPO_DIR
 Restart=always
 RestartSec=10
 User=ubuntu
