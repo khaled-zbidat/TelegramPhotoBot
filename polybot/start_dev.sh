@@ -61,11 +61,10 @@ EnvironmentFile=${ENV_FILE}
 WantedBy=multi-user.target
 EOF
 
-# Reload systemd and (re)enable the service
+# Reload systemd and enable the service (no restart yet)
 sudo systemctl daemon-reload
 sudo systemctl enable $SERVICE_NAME
 echo "✅ Systemd service $SERVICE_NAME updated and enabled"
-
 
 # --- Start ngrok if not running ---
 NGROK_PID=$(pgrep -f 'ngrok http 8443')
@@ -97,7 +96,8 @@ curl -s -F "url=${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/" \
      https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook
 echo "✅ Telegram webhook set to ${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/"
 
-# --- Restart the systemd service ---
+# --- Now Restart the systemd service ---
 echo "Restarting bot service..."
+sudo systemctl daemon-reload
 sudo systemctl restart $SERVICE_NAME
 echo "✅ Service $SERVICE_NAME restarted"
