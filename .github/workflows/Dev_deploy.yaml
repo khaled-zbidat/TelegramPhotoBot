@@ -42,8 +42,6 @@ jobs:
           git pull &&
           echo '✅ Pulled successfully after stashing any local changes'; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
           
-            - name: Execute deployment script on EC2
-              - name: Execute deployment script on EC2
 
 
       - name: Execute deployment script on EC2
