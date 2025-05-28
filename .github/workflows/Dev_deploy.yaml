@@ -42,11 +42,16 @@ jobs:
           git pull &&
           echo '✅ Pulled successfully after stashing any local changes'; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
           
+            - name: Execute deployment script on EC2
+              - name: Execute deployment script on EC2
+
+
       - name: Execute deployment script on EC2
         run: |
           ssh ec2 "
             cd ~/${REPO_NAME}/polybot &&
             chmod +x start_dev.sh &&
-            bash start_dev.sh ~/${REPO_NAME} ${{ secrets.TELEGRAM_TOKEN }} ${{ secrets.YOLO_URL_DEV }}  
+            bash start_dev.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}} ${{ secrets.YOLO_URL_DEV }}
           "
+
         
