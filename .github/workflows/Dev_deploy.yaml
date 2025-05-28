@@ -1,221 +1,67 @@
-name: PolyBot Deploy
+name: Deploy PolyBot to Dev
 
 on:
   push:
-    branches:
-      - 'dev'
+    branches: [dev]
   workflow_dispatch:
 
-env:
-  REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-  REPO_NAME: ${{ github.event.repository.name }}
-
 jobs:
-  Deploy:
+  deploy:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Configure SSH
-        env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.DEV_EC2_HOST}}
-          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+      - name: Setup SSH
         run: |
           mkdir -p ~/.ssh
-          echo "$SSH_PRIVATE_KEY" > ~/.ssh/private_key
-          chmod 600 ~/.ssh/private_key
+          echo "${{ secrets.SSH_PRIVATE_KEY }}" > ~/.ssh/key
+          chmod 600 ~/.ssh/key
           cat > ~/.ssh/config << EOF
-          Host ec2
-            HostName $EC2_HOST
-            User $EC2_USERNAME
-            IdentityFile ~/.ssh/private_key
+          Host server
+            HostName ${{ secrets.DEV_EC2_HOST }}
+            User ${{ secrets.EC2_USERNAME }}
+            IdentityFile ~/.ssh/key
             StrictHostKeyChecking no
           EOF
 
-      - name: Copy and checkout `dev` branch to EC2
+      - name: Deploy to DEV server
         run: |
-          ssh ec2 "
-            if [ -d ~/${REPO_NAME} ]; then
-              cd ~/${REPO_NAME} &&
-              git fetch origin &&
-              git stash &&
-              git checkout dev &&
-              git pull origin dev &&
-              echo '✅ Checked out and updated dev branch' &&
-              echo '📌 Current branch:' &&
-              git branch --show-current &&
-              git log -1 --oneline
+          ssh server "
+            echo '🚀 Deploying to DEV environment...'
+            
+            # Clone or update repo on DEV branch
+            if [ -d ~/TelegramPhotoBot ]; then
+              echo '📂 Updating existing repository...'
+              cd ~/TelegramPhotoBot
+              git fetch origin
+              git stash push -m 'Auto-stash before deploy'
+              git checkout dev
+              git reset --hard origin/dev
+              echo '✅ Updated to latest dev branch'
             else
-              git clone --branch dev ${REPO_URL} ~/${REPO_NAME} &&
-              echo '✅ Cloned dev branch' &&
-              cd ~/${REPO_NAME} &&
-              echo '📌 Current branch:' &&
-              git branch --show-current &&
-              git log -1 --oneline
-            fi
-          "
-
-      - name: Install system dependencies on EC2
-        run: |
-          ssh ec2 "
-            echo '🔧 Installing system dependencies...'
-            sudo apt update
-            sudo apt install -y python3 python3-pip python3-venv curl jq net-tools systemd
-            echo '✅ System dependencies installed'
-          "
-
-      - name: Setup Python virtual environment and install dependencies
-        run: |
-          ssh ec2 "
-            cd ~/${REPO_NAME}
-            
-            # Create or update virtual environment
-            if [ ! -d 'venv' ]; then
-              echo '🐍 Creating Python virtual environment...'
-              python3 -m venv venv
+              echo '📥 Cloning dev branch...'
+              git clone -b dev ${{ github.server_url }}/${{ github.repository }}.git ~/TelegramPhotoBot
+              echo '✅ Cloned dev branch'
             fi
             
-            # Activate virtual environment
-            source venv/bin/activate
+            cd ~/TelegramPhotoBot
+            echo '📌 Current branch:'
+            git branch --show-current
+            git log -1 --oneline
             
-            # Upgrade pip
-            pip install --upgrade pip
+            # Make scripts executable
+            chmod +x setup.sh
+            chmod +x polybot/start_dev.sh
             
-            # Install dependencies
-            if [ -f 'requirements.txt' ]; then
-              echo '📦 Installing from requirements.txt...'
-              pip install -r requirements.txt
-            else
-              echo '📦 Installing essential packages...'
-              pip install flask requests pillow python-telegram-bot python-dotenv
-              echo '📝 Creating requirements.txt...'
-              pip freeze > requirements.txt
-            fi
+            # Run setup for DEV environment (from main directory)
+            echo '🔧 Running DEV setup...'
+            ./setup.sh
             
-            echo '✅ Python environment setup complete'
+            # Start the bot with DEV configuration (from polybot directory)
+            echo '🚀 Starting DEV bot...'
+            cd polybot
+            ./start_dev.sh '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}' '${{ secrets.YOUR_NGROK_TOKEN }}'
             
-            # Verify installations
-            echo '🧪 Verifying key imports...'
-            python3 -c 'import flask; import requests; print(\"✅ Essential packages verified\")'
-          "
-
-      - name: Create service setup script
-        run: |
-          ssh ec2 "
-            cd ~/${REPO_NAME}/polybot
-            cat > setup_service.sh << 'SETUP_EOF'
-          #!/bin/bash
-          set -e
-
-          # Get the repository directory
-          REPO_DIR=\"\${1:-/home/ubuntu/TelegramPhotoBot}\"
-          SERVICE_NAME=\"telegrambot\"
-          SERVICE_FILE=\"/etc/systemd/system/\${SERVICE_NAME}.service\"
-          ENV_FILE=\"\${REPO_DIR}/polybot/.runtime_env\"
-
-          echo \"🛠️ Setting up systemd service for Telegram Bot\"
-          echo \"Repository: \$REPO_DIR\"
-          echo \"Environment file: \$ENV_FILE\"
-
-          # Verify paths exist
-          if [[ ! -d \"\$REPO_DIR\" ]]; then
-              echo \"❌ Repository directory not found: \$REPO_DIR\"
-              exit 1
-          fi
-
-          if [[ ! -f \"\$REPO_DIR/polybot/app.py\" ]]; then
-              echo \"❌ Bot application not found: \$REPO_DIR/polybot/app.py\"
-              exit 1
-          fi
-
-          # Check if virtual environment exists
-          VENV_PYTHON=\"\$REPO_DIR/venv/bin/python3\"
-          if [[ ! -f \"\$VENV_PYTHON\" ]]; then
-              echo \"❌ Virtual environment Python not found: \$VENV_PYTHON\"
-              echo \"Please ensure the virtual environment is properly set up\"
-              exit 1
-          fi
-
-          # Test if Flask is available in the venv
-          echo \"🧪 Testing Flask import in virtual environment...\"
-          if ! \"\$VENV_PYTHON\" -c \"import flask; print('✅ Flask found in venv')\" 2>/dev/null; then
-              echo \"❌ Flask not found in virtual environment\"
-              echo \"Installing Flask and dependencies...\"
-              \"\$REPO_DIR/venv/bin/pip\" install flask requests pillow python-telegram-bot python-dotenv
-          fi
-
-          # Create the systemd service file
-          echo \"📝 Creating systemd service file...\"
-          sudo tee \"\$SERVICE_FILE\" > /dev/null <<EOF
-          [Unit]
-          Description=Telegram Photo Bot
-          After=network.target
-          Wants=network-online.target
-
-          [Service]
-          Type=simple
-          ExecStart=\$VENV_PYTHON \$REPO_DIR/polybot/app.py
-          WorkingDirectory=\$REPO_DIR/polybot
-          Restart=always
-          RestartSec=10
-          User=ubuntu
-          Group=ubuntu
-          EnvironmentFile=\$ENV_FILE
-
-          # Logging
-          StandardOutput=journal
-          StandardError=journal
-          SyslogIdentifier=telegrambot
-
-          # Security settings
-          NoNewPrivileges=true
-          PrivateTmp=true
-
-          [Install]
-          WantedBy=multi-user.target
-          EOF
-
-          echo \"✅ Systemd service file created\"
-
-          # Set proper permissions on the service file
-          sudo chmod 644 \"\$SERVICE_FILE\"
-
-          # Reload systemd and enable the service
-          echo \"🔄 Reloading systemd daemon...\"
-          sudo systemctl daemon-reload
-
-          echo \"🚀 Enabling service...\"
-          sudo systemctl enable \$SERVICE_NAME
-
-          echo \"✅ Service \$SERVICE_NAME has been set up and enabled\"
-          SETUP_EOF
-          
-          chmod +x setup_service.sh
-          echo '✅ Service setup script created'
-          "
-
-      - name: Debug pulled repo structure on EC2
-        run: |
-          ssh ec2 "
-            echo '🧾 Current working directory:'
-            pwd
-
-            echo '📂 Listing contents of ~/${REPO_NAME}/polybot:'
-            ls -al ~/${REPO_NAME}/polybot
-
-            echo '📄 Checking if requirements.txt exists:'
-            ls -al ~/${REPO_NAME}/requirements.txt 2>/dev/null || echo 'requirements.txt not found'
-            
-            echo '🐍 Checking virtual environment:'
-            ls -al ~/${REPO_NAME}/venv/bin/python3 2>/dev/null && echo '✅ Virtual environment found' || echo '❌ Virtual environment missing'
-          "
-
-      - name: Execute deployment script on EC2
-        run: |
-          ssh ec2 "
-            cd ~/${REPO_NAME}/polybot &&
-            chmod +x start_dev.sh &&
-            bash start_dev.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}} ${{secrets.YOLO_URL_DEV}} ${{secrets.YOUR_NGROK_TOKEN}}
+            echo '✅ DEV deployment complete!'
           "
