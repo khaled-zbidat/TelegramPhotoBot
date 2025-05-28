@@ -54,7 +54,7 @@ Description=Telegram Photo Bot
 After=network.target
 
 [Service]
-ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start.sh
+ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start_prod.sh
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot
 Restart=always
 User=ubuntu
