@@ -16,7 +16,7 @@ fi
 # Activate and install Python packages
 source venv/bin/activate
 pip install --upgrade pip
-pip install flask requests pillow python-telegram-bot python-dotenv
+pip install flask requests pillow python-telegram-bot python-dotenv pyTelegramBotAPI
 
 # Install ngrok if not present
 if ! command -v ngrok &> /dev/null; then
