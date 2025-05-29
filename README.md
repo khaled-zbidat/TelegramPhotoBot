@@ -1,6 +1,6 @@
 Certaisnly! Here are the essential systemctl commands to manage your telegrambot service on Ubuntu:
 
-🔄 Restart the Service
+🔄 Restart the Services
 To restart the telegrambot service:
 
 bash
