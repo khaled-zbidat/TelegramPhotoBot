@@ -19,7 +19,7 @@ sudo systemctl stop telegrambot 2>/dev/null || true
 pkill -f 'ngrok http' || true
 sleep 2
 
-# Create environment file (in polybot directory)
+# Create environment file in main directory (not polybot)
 cat > .env <<EOF
 TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
 YOLO_SERVICE_URL=$YOLO_URL
@@ -54,7 +54,7 @@ fi
 
 echo "🌍 Ngrok URL: $NGROK_URL"
 
-# Add ngrok URL to env file (in current polybot directory)
+# Add ngrok URL to env file in main directory
 echo "BOT_APP_URL=$NGROK_URL" >> .env
 
 # Set Telegram webhook

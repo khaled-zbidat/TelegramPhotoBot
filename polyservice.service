@@ -1,0 +1,18 @@
+[Unit]
+Description=Polybot with ngrok integration
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/TelegramPhotoBot
+ExecStart=/bin/bash /home/ubuntu/your-repo-name/polybot/start_polybot.sh /home/ubuntu/TelegramPhotoBot
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/ubuntu/your-repo-name/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
