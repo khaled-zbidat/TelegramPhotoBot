@@ -49,5 +49,12 @@ jobs:
         run: |
           ssh ec2 "
             sudo apt update
-            sudo apt install -y python3.12-venv
+            if ! command -v python3.12 >/dev/null 2>&1; then
+              echo "Installing Python 3.12 and venv..."
+              sudo apt update
+              sudo apt install -y python3.12 python3.12-venv
+            else
+              echo "Python 3.12 already installed. Skipping."
+            fi
+
             cd $REPO_NAME && NGROK_TOKEN='$NGROK_TOKEN' bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
