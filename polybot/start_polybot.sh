@@ -25,7 +25,6 @@ log() {
     echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
 }
 
-
 # Error handling
 error_exit() {
     log "❌ ERROR: $1"
@@ -42,13 +41,32 @@ warning() {
     log "⚠️  $1"
 }
 
+# Function to stop all ngrok processes
+stop_all_ngrok() {
+    log "→ Stopping all ngrok processes..."
+    
+    # Kill all ngrok processes
+    pkill -f "ngrok" 2>/dev/null || true
+    
+    # Wait a bit for processes to terminate
+    sleep 3
+    
+    # Force kill if any remain
+    pkill -9 -f "ngrok" 2>/dev/null || true
+    
+    # Also try to stop via API if available
+    curl -s -X DELETE http://localhost:4040/api/tunnels 2>/dev/null || true
+    
+    success "All ngrok processes stopped"
+}
+
 # Function to get ngrok URL (without logging mixed in)
 get_ngrok_url() {
     local retries=0
     while [ $retries -lt $MAX_RETRIES ]; do
         retries=$((retries + 1))
 
-        local ngrok_url=$(curl -s http://localhost:4040/api/tunnels | \
+        local ngrok_url=$(curl -s http://localhost:4040/api/tunnels 2>/dev/null | \
              python3 -c "import sys,json; data=json.load(sys.stdin); print(data['tunnels'][0]['public_url'] if data.get('tunnels') else '')" 2>/dev/null || echo "")
 
         if [ -n "$ngrok_url" ] && [[ "$ngrok_url" == https://* ]]; then
@@ -60,7 +78,6 @@ get_ngrok_url() {
     done
     return 1
 }
-
 
 # Function to clean and update .env file
 update_env_file() {
@@ -101,6 +118,21 @@ update_env_file() {
     mv "$temp_file" "$env_file"
 }
 
+# Function to check if ngrok is already running
+check_existing_ngrok() {
+    if curl -s http://localhost:4040/api/tunnels >/dev/null 2>&1; then
+        local existing_url=$(curl -s http://localhost:4040/api/tunnels | \
+             python3 -c "import sys,json; data=json.load(sys.stdin); tunnels=[t for t in data.get('tunnels', []) if t.get('config', {}).get('addr') == 'http://localhost:$NGROK_PORT']; print(tunnels[0]['public_url'] if tunnels else '')" 2>/dev/null || echo "")
+        
+        if [ -n "$existing_url" ] && [[ "$existing_url" == https://* ]]; then
+            log "✓ Found existing ngrok tunnel: $existing_url"
+            echo "$existing_url"
+            return 0
+        fi
+    fi
+    return 1
+}
+
 # Main script starts here
 log "🚀 Starting Polybot Enhanced..."
 log "Project path: $PROJECT_PATH"
@@ -128,12 +160,6 @@ set +a
 [ -z "$TELEGRAM_BOT_TOKEN" ] && error_exit "TELEGRAM_BOT_TOKEN not set in .env"
 [ -z "$YOUR_NGROK_TOKEN" ] && error_exit "YOUR_NGROK_TOKEN not set in .env"
 
-# Clean up any existing processes
-log "🧹 Cleaning up processes..."
-pkill -f "ngrok.*$NGROK_PORT" 2>/dev/null || true
-pkill -f "python.*app.py" 2>/dev/null || true
-sleep 2
-
 # Check if ngrok is installed
 if ! command -v ngrok &> /dev/null; then
     log "→ Installing ngrok..."
@@ -150,30 +176,47 @@ log "→ Configuring ngrok authentication..."
 ngrok config add-authtoken "$YOUR_NGROK_TOKEN"
 success "ngrok authenticated successfully"
 
-# Start ngrok
-log "→ Starting ngrok on port $NGROK_PORT..."
-ngrok http $NGROK_PORT --log=stdout > /tmp/ngrok.log 2>&1 &
-NGROK_PID=$!
-sleep 2
-
-# Verify ngrok is running
-if ! kill -0 $NGROK_PID 2>/dev/null; then
-    error_exit "Failed to start ngrok"
+# Check for existing ngrok tunnel first
+log "→ Checking for existing ngrok tunnels..."
+NGROK_URL=""
+if NGROK_URL=$(check_existing_ngrok); then
+    log "✓ Using existing ngrok tunnel: $NGROK_URL"
+else
+    # Stop all existing ngrok processes to avoid conflicts
+    stop_all_ngrok
+    
+    # Wait a moment before starting new ngrok
+    sleep 2
+    
+    # Start ngrok
+    log "→ Starting ngrok on port $NGROK_PORT..."
+    ngrok http $NGROK_PORT --log=stdout > /tmp/ngrok.log 2>&1 &
+    NGROK_PID=$!
+    sleep 3
+    
+    # Verify ngrok is running
+    if ! kill -0 $NGROK_PID 2>/dev/null; then
+        log "❌ ngrok process died, checking logs..."
+        cat /tmp/ngrok.log >&2
+        error_exit "Failed to start ngrok"
+    fi
+    
+    log "→ ngrok started with PID: $NGROK_PID"
+    success "ngrok process is running"
+    
+    # Wait for ngrok to be ready and get URL
+    log "→ Fetching ngrok public URL..."
+    sleep 5
+    
+    NGROK_URL=$(get_ngrok_url)
+    if [ -z "$NGROK_URL" ]; then
+        log "❌ Failed to get ngrok URL, checking logs..."
+        cat /tmp/ngrok.log >&2
+        error_exit "Failed to get ngrok URL after $MAX_RETRIES attempts"
+    fi
+    
+    log "✓ Got ngrok URL: $NGROK_URL"
 fi
-
-log "→ ngrok started with PID: $NGROK_PID"
-success "ngrok process is running"
-
-# Wait for ngrok to be ready and get URL
-log "→ Fetching ngrok public URL..."
-sleep 5
-
-NGROK_URL=$(get_ngrok_url)
-if [ -z "$NGROK_URL" ]; then
-    error_exit "Failed to get ngrok URL after $MAX_RETRIES attempts"
-fi
-
-log "✓ Got ngrok URL: $NGROK_URL"
 
 # Update .env file with clean URL
 log "→ Updating .env file with URL: $NGROK_URL"
