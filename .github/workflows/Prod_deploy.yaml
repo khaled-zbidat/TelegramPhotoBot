@@ -45,6 +45,8 @@ jobs:
       - name: Execute deployment script on EC2
         run: |
           ssh ec2 "
+            sudo apt update
+            sudo apt install -y python3.12-venv
             cd ~/${REPO_NAME}/polybot &&
             chmod +x start_prod.sh &&
             bash start_prod.sh ~/${REPO_NAME} ${{ secrets.TELEGRAM_TOKEN }} ${{ secrets.YOLO_URL_PROD }}
