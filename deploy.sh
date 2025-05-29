@@ -46,16 +46,26 @@ SERVICE_FILE="polyservice.service"
 echo "==> Using project directory: $PROJECT_DIR"
 
 # === 2. Check/create virtual environment ===
-if [ -d "$VENV_DIR" ]; then
-    echo "✓ Virtual environment exists."
+# Fixed: Check for activate script, not just directory
+if [ -f "$VENV_DIR/bin/activate" ]; then
+    echo "✓ Virtual environment exists and is properly configured."
 else
     echo "→ Creating virtual environment..."
+    # Remove existing directory if it exists but is incomplete
+    if [ -d "$VENV_DIR" ]; then
+        echo "→ Removing incomplete virtual environment..."
+        rm -rf "$VENV_DIR"
+    fi
     python3 -m venv "$VENV_DIR"
+    echo "✓ Virtual environment created successfully."
 fi
 
 # === 3. Activate the virtual environment ===
+echo "→ Activating virtual environment..."
 source "$VENV_DIR/bin/activate"
+echo "✓ Virtual environment activated."
 
+echo "→ Installing/updating Python packages..."
 pip install --upgrade pip
 pip install -r "$PROJECT_DIR/polybot/requirements.txt"
 echo "✓ Python requirements installed."
