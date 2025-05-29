@@ -49,6 +49,13 @@ jobs:
         run: |
           ssh ec2 "
             sudo apt update
+            sudo apt-get upgrade -y
+            export DEBIAN_FRONTEND=noninteractive
+            sudo apt install -y ngrok
+            unset DEBIAN_FRONTEND
+            sudo apt-get update -qq
+            sudo apt-get install -y -qq python3.12 python3.12-venv ngrok  
+
             if ! command -v python3.12 >/dev/null 2>&1; then
               echo "Installing Python 3.12 and venv..."
               sudo apt update
