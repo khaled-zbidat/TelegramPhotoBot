@@ -133,23 +133,35 @@ fetch_ngrok_url() {
     return 1
 }
 
-# Function to update .env with BOT_APP_URL
+# Function to update .env with BOT_APP_URL - FIXED VERSION
 update_env_file_with_url() {
     local env_file="$1"
     local url="$2"
     
     log "→ Updating .env file with URL: $url"
     
-    if grep -q "^BOT_APP_URL=" "$env_file"; then
-        sed -i "s|^BOT_APP_URL=.*|BOT_APP_URL=$url|" "$env_file"
-    else
-        echo "BOT_APP_URL=$url" >> "$env_file"
-    fi
+    # Create a temporary file to avoid corrupting the original
+    local temp_file=$(mktemp)
+    
+    # Copy only valid environment variables (KEY=VALUE format)
+    # This automatically removes any corrupted log entries
+    grep -E '^[A-Z_][A-Z0-9_]*=' "$env_file" > "$temp_file" 2>/dev/null || true
+    
+    # Remove any existing BOT_APP_URL
+    grep -v "^BOT_APP_URL=" "$temp_file" > "${temp_file}.clean" 2>/dev/null || true
+    mv "${temp_file}.clean" "$temp_file"
+    
+    # Add the new BOT_APP_URL
+    echo "BOT_APP_URL=$url" >> "$temp_file"
+    
+    # Replace the original file
+    mv "$temp_file" "$env_file"
+    
     export BOT_APP_URL="$url"
-    log "✓ .env file updated successfully"
+    log "✓ .env file automatically cleaned and updated successfully"
 }
 
-# Function to validate environment
+# Function to validate environment - FIXED VERSION
 validate_environment() {
     local project_path="$1"
     local env_file="$project_path/polybot/.env"
@@ -161,8 +173,18 @@ validate_environment() {
         return 1
     fi
     
-    # Load and validate required variables
-    source "$env_file"
+    # Load environment variables without executing them as commands
+    # Use a safer method to read the .env file
+    while IFS='=' read -r key value; do
+        # Skip empty lines and comments
+        [[ -z "$key" || "$key" =~ ^[[:space:]]*# ]] && continue
+        
+        # Remove any quotes from the value
+        value=$(echo "$value" | sed 's/^"//;s/"$//')
+        
+        # Export the variable
+        export "$key"="$value"
+    done < <(grep -E '^[^#]*=' "$env_file")
     
     if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
         log "❌ TELEGRAM_BOT_TOKEN not set in .env"
@@ -204,8 +226,7 @@ main() {
         exit 1
     fi
     
-    # Load environment variables
-    source "$ENV_FILE"
+    # Export ngrok token for authentication
     export NGROK_TOKEN="${YOUR_NGROK_TOKEN}"
     
     # Check ngrok installation
