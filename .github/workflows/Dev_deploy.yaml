@@ -45,4 +45,7 @@ jobs:
 
       - name: Execute deployment script on EC2
         run: |
-          ssh ec2 "cd $REPO_NAME && bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
+          ssh ec2 "
+            sudo apt update
+            sudo apt install -y python3.12-venv
+            cd $REPO_NAME && bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
