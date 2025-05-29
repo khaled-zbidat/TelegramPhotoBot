@@ -5,7 +5,7 @@ set -e
 start_ngrok_if_needed() {
     if ! pgrep -f "ngrok http 8443" > /dev/null; then
         echo "→ Starting ngrok on port 8443..."
-        nohup ngrok http 8443 --authtoken $NGROK_TOKEN > /dev/null 2>&1 &
+        nohup /usr/local/bin/ngrok http 8443 --authtoken $NGROK_TOKEN > /dev/null 2>&1 &    
         sleep 5  # Give ngrok more time to start
     else
         echo "✓ ngrok is already running."
