@@ -44,8 +44,10 @@ jobs:
             fi"
 
       - name: Execute deployment script on EC2
+        env:
+          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
         run: |
           ssh ec2 "
             sudo apt update
             sudo apt install -y python3.12-venv
-            cd $REPO_NAME && bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
+            cd $REPO_NAME && NGROK_TOKEN='$NGROK_TOKEN' bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"

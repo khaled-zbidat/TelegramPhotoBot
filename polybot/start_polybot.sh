@@ -1,34 +1,135 @@
 #!/bin/bash
 set -e
 
-# Function to start ngrok if it's not running
-start_ngrok_if_needed() {
-    if ! pgrep -f "ngrok http 8443" > /dev/null; then
-        echo "→ Starting ngrok on port 8443..."
-        nohup /usr/local/bin/ngrok http 8443 --authtoken $NGROK_TOKEN > /dev/null 2>&1 &    
-        sleep 5  # Give ngrok more time to start
+# Enhanced logging function
+log() {
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" | tee -a /tmp/polybot.log
+}
+
+# Function to cleanup on exit
+cleanup() {
+    log "🧹 Cleaning up processes..."
+    pkill -f "ngrok http" || true
+}
+
+# Set trap for cleanup
+trap cleanup EXIT INT TERM
+
+# Function to check if ngrok is installed
+check_ngrok_installation() {
+    if ! command -v ngrok &> /dev/null; then
+        log "❌ ngrok is not installed. Installing ngrok..."
+        
+        # Download and install ngrok
+        curl -s https://ngrok-agent.s3.amazonaws.com/ngrok.asc | sudo tee /etc/apt/trusted.gpg.d/ngrok.asc >/dev/null
+        echo "deb https://ngrok-agent.s3.amazonaws.com buster main" | sudo tee /etc/apt/sources.list.d/ngrok.list
+        sudo apt update
+        sudo apt install ngrok
+        
+        log "✓ ngrok installed successfully"
     else
-        echo "✓ ngrok is already running."
+        log "✓ ngrok is already installed"
     fi
 }
 
-# Function to get ngrok public URL
+# Function to authenticate ngrok
+authenticate_ngrok() {
+    local token="$1"
+    if [ -z "$token" ]; then
+        log "❌ NGROK_TOKEN is not set!"
+        return 1
+    fi
+    
+    log "→ Configuring ngrok authentication..."
+    ngrok config add-authtoken "$token"
+    log "✓ ngrok authenticated successfully"
+}
+
+# Function to start ngrok with better error handling
+start_ngrok_if_needed() {
+    # Kill any existing ngrok processes
+    pkill -f "ngrok http" || true
+    sleep 2
+    
+    log "→ Starting ngrok on port 8443..."
+    
+    # Start ngrok in background with explicit config
+    nohup ngrok http 8443 --log stdout > /tmp/ngrok.log 2>&1 &
+    local ngrok_pid=$!
+    
+    log "→ ngrok started with PID: $ngrok_pid"
+    
+    # Wait for ngrok to initialize
+    local max_wait=30
+    local wait_time=0
+    
+    while [ $wait_time -lt $max_wait ]; do
+        if pgrep -f "ngrok http" > /dev/null; then
+            log "✓ ngrok process is running"
+            break
+        fi
+        log "→ Waiting for ngrok to start... ($wait_time/$max_wait)"
+        sleep 2
+        wait_time=$((wait_time + 2))
+    done
+    
+    if ! pgrep -f "ngrok http" > /dev/null; then
+        log "❌ ngrok failed to start within timeout"
+        log "→ ngrok log output:"
+        cat /tmp/ngrok.log || true
+        return 1
+    fi
+    
+    # Additional wait for API to be ready
+    sleep 5
+}
+
+# Function to get ngrok public URL with better error handling
 fetch_ngrok_url() {
-    local max_attempts=10
+    local max_attempts=15
     local attempt=1
     
+    log "→ Fetching ngrok public URL..."
+    
     while [ $attempt -le $max_attempts ]; do
-        local url=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | jq -r '.tunnels[0].public_url' 2>/dev/null)
-        if [ "$url" != "null" ] && [ -n "$url" ]; then
+        log "→ Attempt $attempt/$max_attempts: Checking ngrok API..."
+        
+        # Check if ngrok API is responding
+        if ! curl -s http://127.0.0.1:4040/api/tunnels > /dev/null 2>&1; then
+            log "→ ngrok API not ready yet, waiting..."
+            sleep 3
+            ((attempt++))
+            continue
+        fi
+        
+        # Try to get the URL
+        local response=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null)
+        if [ $? -ne 0 ]; then
+            log "→ Failed to query ngrok API"
+            sleep 3
+            ((attempt++))
+            continue
+        fi
+        
+        # Parse the URL
+        local url=$(echo "$response" | jq -r '.tunnels[0].public_url' 2>/dev/null)
+        
+        if [ "$url" != "null" ] && [ -n "$url" ] && [[ "$url" == https://* ]]; then
+            log "✓ Got ngrok URL: $url"
             echo "$url"
             return 0
         fi
-        echo "→ Attempt $attempt: Waiting for ngrok to be ready..."
-        sleep 2
+        
+        log "→ URL not ready yet (got: $url), retrying..."
+        sleep 3
         ((attempt++))
     done
     
-    echo ""
+    log "❌ Failed to get ngrok URL after $max_attempts attempts"
+    log "→ Final ngrok API response:"
+    curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | jq . || echo "Failed to get API response"
+    log "→ ngrok log:"
+    tail -20 /tmp/ngrok.log || true
     return 1
 }
 
@@ -37,63 +138,119 @@ update_env_file_with_url() {
     local env_file="$1"
     local url="$2"
     
+    log "→ Updating .env file with URL: $url"
+    
     if grep -q "^BOT_APP_URL=" "$env_file"; then
         sed -i "s|^BOT_APP_URL=.*|BOT_APP_URL=$url|" "$env_file"
     else
         echo "BOT_APP_URL=$url" >> "$env_file"
     fi
     export BOT_APP_URL="$url"
+    log "✓ .env file updated successfully"
+}
+
+# Function to validate environment
+validate_environment() {
+    local project_path="$1"
+    local env_file="$project_path/polybot/.env"
+    
+    log "→ Validating environment..."
+    
+    if [ ! -f "$env_file" ]; then
+        log "❌ .env file not found at: $env_file"
+        return 1
+    fi
+    
+    # Load and validate required variables
+    source "$env_file"
+    
+    if [ -z "$TELEGRAM_BOT_TOKEN" ]; then
+        log "❌ TELEGRAM_BOT_TOKEN not set in .env"
+        return 1
+    fi
+    
+    if [ -z "$YOUR_NGROK_TOKEN" ]; then
+        log "❌ YOUR_NGROK_TOKEN not set in .env"
+        return 1
+    fi
+    
+    if [ -z "$YOLO_URL" ]; then
+        log "❌ YOLO_URL not set in .env"
+        return 1
+    fi
+    
+    log "✓ Environment validation passed"
+    return 0
 }
 
 # === Main Script ===
 main() {
     local project_path="$1"
     
+    log "🚀 Starting Polybot Enhanced..."
+    log "Project path: $project_path"
+    
     if [ -z "$project_path" ]; then
-        echo "Usage: $0 <project_path>"
+        log "❌ Usage: $0 <project_path>"
         exit 1
     fi
 
     ENV_FILE="$project_path/polybot/.env"
     VENV_PATH="$project_path/venv"
     
-    echo "🚀 Starting Polybot..."
-    echo "Project path: $project_path"
-    
-    # Load environment variables
-    if [ -f "$ENV_FILE" ]; then
-        source "$ENV_FILE"
-    fi
-    
-    # Set ngrok token from environment
-    export NGROK_TOKEN="${YOUR_NGROK_TOKEN}"
-    
-    # Start ngrok
-    start_ngrok_if_needed
-    
-    # Get ngrok URL
-    echo "→ Fetching ngrok URL..."
-    bot_url=$(fetch_ngrok_url)
-    
-    if [ -z "$bot_url" ]; then
-        echo "❌ Failed to retrieve ngrok public URL"
+    # Validate environment first
+    if ! validate_environment "$project_path"; then
+        log "❌ Environment validation failed"
         exit 1
     fi
     
-    echo "✓ ngrok URL: $bot_url"
+    # Load environment variables
+    source "$ENV_FILE"
+    export NGROK_TOKEN="${YOUR_NGROK_TOKEN}"
+    
+    # Check ngrok installation
+    check_ngrok_installation
+    
+    # Authenticate ngrok
+    if ! authenticate_ngrok "$NGROK_TOKEN"; then
+        log "❌ ngrok authentication failed"
+        exit 1
+    fi
+    
+    # Start ngrok
+    if ! start_ngrok_if_needed; then
+        log "❌ Failed to start ngrok"
+        exit 1
+    fi
+    
+    # Get ngrok URL
+    bot_url=$(fetch_ngrok_url)
+    if [ -z "$bot_url" ]; then
+        log "❌ Failed to retrieve ngrok public URL"
+        exit 1
+    fi
     
     # Update .env and export URL
     update_env_file_with_url "$ENV_FILE" "$bot_url"
     
     # Activate virtual environment
+    if [ ! -f "$VENV_PATH/bin/activate" ]; then
+        log "❌ Virtual environment not found at: $VENV_PATH"
+        exit 1
+    fi
+    
+    log "→ Activating virtual environment..."
     source "$VENV_PATH/bin/activate"
-    echo "✓ Virtual environment activated."
+    log "✓ Virtual environment activated"
     
     # Change to project root directory
     cd "$project_path"
-
-    echo "🤖 Launching bot..."
-    PYTHONPATH="$project_path" python3 -m polybot.app
+    
+    log "🤖 Launching bot with URL: $bot_url"
+    
+    # Set Python path and start the bot
+    export PYTHONPATH="$project_path"
+    exec python3 -m polybot.app
 }
 
 main "$1"
