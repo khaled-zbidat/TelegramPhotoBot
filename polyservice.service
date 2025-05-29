@@ -10,7 +10,7 @@ ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_polybot.sh /home
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
-Environment=PATH=/home/ubuntu/TelegramPhotoBot/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/home/ubuntu/TelegramPhotoBot/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 StandardOutput=journal
 StandardError=journal
 
