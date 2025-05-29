@@ -84,7 +84,7 @@ set_env_var "YOLO_URL" "$YOLO_URL"
 echo "✓ .env file is up to date."
 
 # === 5. Restart the service ===
-if [ -f "$SERVICE_FILE" ]; then
+if [ -f "/etc/systemd/system/$SERVICE_FILE" ]; then
     echo "→ Installing systemd service..."
     sudo systemctl daemon-reload
     sudo systemctl restart "$SERVICE_FILE"

@@ -89,14 +89,11 @@ main() {
     source "$VENV_PATH/bin/activate"
     echo "✓ Virtual environment activated."
     
-    # Change to polybot directory
-    # Stay in the project root
+    # Change to project root directory
     cd "$project_path"
 
     echo "🤖 Launching bot..."
     PYTHONPATH="$project_path" python3 -m polybot.app
-
-
 }
 
 main "$1"
