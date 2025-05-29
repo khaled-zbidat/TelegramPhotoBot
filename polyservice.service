@@ -1,38 +1,18 @@
 [Unit]
 Description=Polybot with ngrok integration
-After=network-online.target
-Wants=network-online.target
-StartLimitIntervalSec=60
-StartLimitBurst=3
+After=network.target
 
 [Service]
-Type=exec
+Type=simple
 User=ubuntu
-Group=ubuntu
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot
 ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_polybot.sh /home/ubuntu/TelegramPhotoBot
-Restart=on-failure
-RestartSec=10
-TimeoutStartSec=120
-TimeoutStopSec=30
-
-# Environment
-Environment=PATH=/home/ubuntu/TelegramPhotoBot/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-Environment=PYTHONPATH=/home/ubuntu/TelegramPhotoBot
+Restart=always
+RestartSec=5
 Environment=PYTHONUNBUFFERED=1
-
-# Logging
+Environment=PATH=/home/ubuntu/TelegramPhotoBot/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 StandardOutput=journal
 StandardError=journal
-SyslogIdentifier=polybot
-
-# Security (optional, but recommended)
-NoNewPrivileges=true
-PrivateTmp=true
-
-# Resource limits
-MemoryLimit=512M
-CPUQuota=80%
 
 [Install]
 WantedBy=multi-user.target

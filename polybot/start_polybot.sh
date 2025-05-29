@@ -20,10 +20,11 @@ YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
 
-# Logging function
+# Redirect all log() output to stderr
 log() {
-    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1"
+    echo "$(date '+%Y-%m-%d %H:%M:%S') - $1" >&2
 }
+
 
 # Error handling
 error_exit() {
@@ -46,20 +47,20 @@ get_ngrok_url() {
     local retries=0
     while [ $retries -lt $MAX_RETRIES ]; do
         retries=$((retries + 1))
-        
-        # Get the URL from ngrok API - ONLY the URL, no log messages
+
         local ngrok_url=$(curl -s http://localhost:4040/api/tunnels | \
-                         python3 -c "import sys,json; data=json.load(sys.stdin); print(data['tunnels'][0]['public_url'] if data.get('tunnels') else '')" 2>/dev/null || echo "")
-        
+             python3 -c "import sys,json; data=json.load(sys.stdin); print(data['tunnels'][0]['public_url'] if data.get('tunnels') else '')" 2>/dev/null || echo "")
+
         if [ -n "$ngrok_url" ] && [[ "$ngrok_url" == https://* ]]; then
-            echo "$ngrok_url"  # ONLY output the URL
+            echo "$ngrok_url"
             return 0
         fi
-        
+
         sleep $RETRY_DELAY
     done
     return 1
 }
+
 
 # Function to clean and update .env file
 update_env_file() {
