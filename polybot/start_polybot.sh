@@ -93,7 +93,7 @@ main() {
     cd "$project_path/polybot"
     
     echo "🤖 Launching bot..."
-    python app.py
+    python3 app.py
 }
 
 main "$1"
