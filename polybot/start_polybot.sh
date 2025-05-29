@@ -90,10 +90,12 @@ main() {
     echo "✓ Virtual environment activated."
     
     # Change to polybot directory
-    cd "$project_path/polybot"
-    
+    # Stay in the project root
+    cd "$project_path"
+
     echo "🤖 Launching bot..."
-    python3 -m polybot.app
+    PYTHONPATH="$project_path" python3 -m polybot.app
+
 
 }
 
