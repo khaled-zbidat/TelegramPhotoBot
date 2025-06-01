@@ -80,6 +80,10 @@ class ImageProcessingBot(Bot):
 
     def handle_message(self, msg):
         logger.info(f'Incoming message: {msg}')
+        # chat_id = msg['chat']['id']# Add error handling for missing chat field
+        if 'chat' not in msg:
+            print("Warning: Message missing 'chat' field, skipping...")
+            return
         chat_id = msg['chat']['id']
         self.send_text(chat_id, f"Hello {msg['chat']['first_name']}! Welcome to the Image Processing Bot.")
 
