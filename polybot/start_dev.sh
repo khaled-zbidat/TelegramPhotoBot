@@ -66,7 +66,14 @@ fi
 
 # Start the bot
 echo "🤖 Launching bot..."
-cd "$SCRIPT_DIR"
-echo $pwd
+cd "$SCRIPT_DIR" || { echo "❌ Failed to cd into $SCRIPT_DIR"; exit 1; }
+
+# Debugging path info
+echo "=== DEBUG PATH INFO ==="
+echo "Current path: $(pwd)"
+echo "Script dir: $SCRIPT_DIR"
+ls -l  # Show directory contents for verification
 echo "PAAAAAAAAATHHHHHH"
+
+# Launch the bot
 python3 -m polybot.app
