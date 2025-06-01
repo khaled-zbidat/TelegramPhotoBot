@@ -6,7 +6,7 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot
-ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_polybot.sh $(cat /home/ubuntu/TelegramPhotoBot/polybot/.env | grep TELEGRAM_BOT_TOKEN | cut -d '=' -f2) $(cat /home/ubuntu/TelegramPhotoBot/polybot/.env | grep YOLO_URL | cut -d '=' -f2)
+ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1

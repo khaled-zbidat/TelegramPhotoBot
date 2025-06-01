@@ -8,7 +8,7 @@ Copy
 Edit
 sudo systemctl restart telegrambot
 🔄 Reload the Service
-If the service supports reloading its configuration without a full restart:
+If the service supportsxx reloading its configuration without a full restart:
 
 bash
 Copy

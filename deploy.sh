@@ -5,6 +5,11 @@ PROJECT_DIR="$1"
 TELEGRAM_TOKEN="$2"
 YOLO_URL="$3"
 
+if [[ -z "$PROJECT_DIR" || -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" ]]; then
+    echo "Usage: $0 <PROJECT_DIR> <TELEGRAM_TOKEN> <YOLO_URL>"
+    exit 1
+fi
+
 cd "$PROJECT_DIR"
 
 echo "→ Setting up deployment files..."
@@ -26,18 +31,34 @@ pip install -r "$PROJECT_DIR/polybot/requirements.txt"
 
 # Write environment file
 ENV_FILE="$PROJECT_DIR/polybot/.env"
-echo "TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN" > "$ENV_FILE"
-echo "YOLO_URL=$YOLO_URL" >> "$ENV_FILE"
+echo "→ Writing environment file: $ENV_FILE"
+cat > "$ENV_FILE" << EOF
+TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
+YOLO_URL=$YOLO_URL
+EOF
+
+echo "✓ Environment file created with:"
+echo "  - TELEGRAM_BOT_TOKEN: ${TELEGRAM_TOKEN:0:10}..."
+echo "  - YOLO_URL: $YOLO_URL"
+
+# Stop existing service if running
+sudo systemctl stop polyservice.service 2>/dev/null || echo "Service was not running"
 
 # Copy and reload systemd service
+echo "→ Installing systemd service..."
 sudo cp polyservice.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl restart polyservice.service
 sudo systemctl enable polyservice.service
+sudo systemctl start polyservice.service
+
+# Wait a moment for service to start
+sleep 3
 
 # Final check
 if systemctl is-active --quiet polyservice.service; then
-    echo "✅ Service is running."
+    echo "✅ Service is running successfully!"
+    echo "→ Checking service status:"
+    sudo systemctl status polyservice.service --no-pager -l
 else
     echo "❌ Service failed to start:"
     sudo journalctl -u polyservice.service -n 20 --no-pager
