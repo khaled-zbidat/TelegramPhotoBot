@@ -2,7 +2,7 @@ import flask
 from flask import request
 import os
 from polybot.bot import Bot, ImageProcessingBot
-#from bot import Bot, QuoteBot, ImageProcessingBot
+#from bot import Bot, QuoteBot, ImagessProcesssssingBot
 #S3 update 1 
 app = flask.Flask(_name_)
 

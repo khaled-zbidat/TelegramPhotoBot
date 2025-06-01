@@ -16,7 +16,7 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
-        
+
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
@@ -33,7 +33,7 @@ jobs:
               IdentityFile ~/.ssh/private_key
               StrictHostKeyChecking no
           EOF
-          
+
       - name: Copy and checkout dev branch to EC2
         run: |
           ssh ec2 "
@@ -44,24 +44,10 @@ jobs:
             fi"
 
       - name: Execute deployment script on EC2
-        env:
-          NGROK_TOKEN: ${{ secrets.NGROK_TOKEN }}
         run: |
           ssh ec2 "
             sudo apt update
-            sudo apt-get upgrade -y
-            export DEBIAN_FRONTEND=noninteractive
-            sudo apt install -y ngrok
-            unset DEBIAN_FRONTEND
-            sudo apt-get update -qq
-            sudo apt-get install -y -qq python3.12 python3.12-venv ngrok  
+            sudo apt install -y python3.12 python3.12-venv curl jq
 
-            if ! command -v python3.12 >/dev/null 2>&1; then
-              echo "Installing Python 3.12 and venv..."
-              sudo apt update
-              sudo apt install -y python3.12 python3.12-venv
-            else
-              echo "Python 3.12 already installed. Skipping."
-            fi
-
-            cd $REPO_NAME && NGROK_TOKEN='$NGROK_TOKEN' bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
+            cd ~/${REPO_NAME} && \
+            bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
