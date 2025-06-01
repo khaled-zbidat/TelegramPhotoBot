@@ -14,7 +14,7 @@ class Bot:
         self.telegram_bot_client.remove_webhook()
         time.sleep(0.5)
         # teh ssl certificat whihc is teh name of is is polybot.crt is in the default ubuntu dir 
-        self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/polybot_dev.crt", 'rb'))
+        self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/polybot_dev.crt", 'r'))
 
         # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/TelegramPhotoBot/polybot/poly_cert.crt", 'r'))
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
