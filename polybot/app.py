@@ -7,7 +7,8 @@ from polybot.bot import Bot, ImageProcessingBot
 app = flask.Flask(__name__)
 
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
-BOT_APP_URL = os.environ['BOT_APP_URL']
+BOT_APP_URL = https://khaled_nginx.fursa.click
+# BOT_APP_URL = os.environ['BOT_APP_URL']
 
 
 @app.route('/', methods=['GET'])
