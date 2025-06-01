@@ -67,4 +67,6 @@ fi
 # Start the bot
 echo "🤖 Launching bot..."
 cd "$SCRIPT_DIR"
+echo $pwd
+echo "PAAAAAAAAATHHHHHH"
 python -m polybot.app
