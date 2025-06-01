@@ -6,11 +6,11 @@ After=network.target
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot
-ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh
+ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh /home/ubuntu/TelegramPhotoBot
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1
-Environment=PATH=/home/ubuntu/TelegramPhotoBot/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+Environment=PATH=/home/ubuntu/TelegramPhotoBot/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 StandardOutput=journal
 StandardError=journal
 
