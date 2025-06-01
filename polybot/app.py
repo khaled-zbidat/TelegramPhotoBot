@@ -3,11 +3,11 @@ from flask import request
 import os
 from polybot.bot import Bot, ImageProcessingBot
 #from bot import Bot, QuoteBot, ImagessProcesssssingBot
-#S3 update 1 
+#S3 update 1 1
 app = flask.Flask(__name__)
 
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
-BOT_APP_URL = https://khaled_nginx.fursa.click
+BOT_APP_URL = "https://khaled_nginx.fursa.click"
 # BOT_APP_URL = os.environ['BOT_APP_URL']
 
 
