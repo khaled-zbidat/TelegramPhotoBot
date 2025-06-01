@@ -13,7 +13,10 @@ class Bot:
         self.telegram_bot_client = telebot.TeleBot(token)
         self.telegram_bot_client.remove_webhook()
         time.sleep(0.5)
-        self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/TelegramPhotoBot/polybot/poly_cert.crt", 'r'))
+        # teh ssl certificat whihc is teh name of is is polybot.crt is in the default ubuntu dir 
+        self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/polybot.crt", 'r'))
+
+        # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/TelegramPhotoBot/polybot/poly_cert.crt", 'r'))
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
 
     def send_text(self, chat_id, text):
