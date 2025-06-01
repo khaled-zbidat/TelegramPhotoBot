@@ -69,4 +69,4 @@ echo "🤖 Launching bot..."
 cd "$SCRIPT_DIR"
 echo $pwd
 echo "PAAAAAAAAATHHHHHH"
-python -m polybot.app
+python3 -m polybot.app
