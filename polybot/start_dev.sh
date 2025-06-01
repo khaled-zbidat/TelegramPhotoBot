@@ -66,14 +66,16 @@ fi
 
 # Start the bot
 echo "🤖 Launching bot..."
-cd "$SCRIPT_DIR" || { echo "❌ Failed to cd into $SCRIPT_DIR"; exit 1; }
+# REMOVED: cd "$SCRIPT_DIR" - This was causing the problem!
+# We're already in PROJECT_ROOT which is correcta
 
 # Debugging path info
 echo "=== DEBUG PATH INFO ==="
 echo "Current path: $(pwd)"
-echo "Script dir: $SCRIPT_DIR"
-ls -l  # Show directory contents for verification
-echo "PAAAAAAAAATHHHHHH"
+echo "Project root: $PROJECT_ROOT"
+echo "Looking for polybot directory:"
+ls -la | grep polybot
+echo "========================"
 
-# Launch the bot
+# Launch the bot - now from correct directory
 python3 -m polybot.app
