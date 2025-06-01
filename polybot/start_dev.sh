@@ -51,7 +51,7 @@ source "$VENV_PATH/bin/activate"
 echo "✓ Virtual environment activated"
 
 # Set webhook URL (replace with your actual NGINX domain)
-WEBHOOK_URL="https://your-nginx-domain.com/${TELEGRAM_BOT_TOKEN}/"
+WEBHOOK_URL="https://khaled_nginx.fursa.click/${TELEGRAM_BOT_TOKEN}/"
 echo "→ Setting webhook URL: $WEBHOOK_URL"
 
 curl -s -X POST \
