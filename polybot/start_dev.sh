@@ -1,38 +1,70 @@
 #!/bin/bash
 set -e
 
-TELEGRAM_TOKEN="$1"
-YOLO_URL="$2"
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-if [[ -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" ]]; then
-    echo "Usage: $0 <TELEGRAM_TOKEN> <YOLO_URL>"
+echo "🚀 Starting Polybot Enhanced..."
+echo "Script directory: $SCRIPT_DIR"
+echo "Project root: $PROJECT_ROOT"
+
+# Load environment variables from .env file
+ENV_FILE="$SCRIPT_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ ERROR: .env file not found at $ENV_FILE"
     exit 1
 fi
 
-echo "🚀 Starting Telegram Bot..."
+# Source the .env file
+set -a
+source "$ENV_FILE"
+set +a
 
-# Stop old service if running
-sudo systemctl stop telegrambot 2>/dev/null || true
+# Validate required environment variables
+if [[ -z "$TELEGRAM_BOT_TOKEN" ]]; then
+    echo "❌ ERROR: TELEGRAM_BOT_TOKEN not found in .env file"
+    exit 1
+fi
 
-# Write .env
-cat > "$(dirname "$0")/.env" <<EOF
-TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
-YOLO_URL=$YOLO_URL
-EOF
+if [[ -z "$YOLO_URL" ]]; then
+    echo "❌ ERROR: YOLO_URL not found in .env file"
+    exit 1
+fi
 
-# Set webhook — assumes NGINX is already exposing the bot properly
+echo "✓ Environment variables loaded successfully"
+echo "✓ TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:0:10}..."
+echo "✓ YOLO_URL: $YOLO_URL"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
+# Activate virtual environment
+VENV_PATH="$PROJECT_ROOT/venv"
+if [ ! -f "$VENV_PATH/bin/activate" ]; then
+    echo "❌ ERROR: Virtual environment not found at $VENV_PATH"
+    exit 1
+fi
+
+echo "→ Activating virtual environment..."
+source "$VENV_PATH/bin/activate"
+echo "✓ Virtual environment activated"
+
+# Set webhook URL (replace with your actual NGINX domain)
+WEBHOOK_URL="https://your-nginx-domain.com/${TELEGRAM_BOT_TOKEN}/"
+echo "→ Setting webhook URL: $WEBHOOK_URL"
+
 curl -s -X POST \
-    "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook" \
-    -d "url=https://your-nginx-domain.com/${TELEGRAM_TOKEN}/" > /dev/null
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+    -d "url=$WEBHOOK_URL" > /dev/null
 
-# Start service
-sudo systemctl start telegrambot
-
-sleep 3
-if sudo systemctl is-active --quiet telegrambot; then
-    echo "✅ Bot started successfully!"
+if [ $? -eq 0 ]; then
+    echo "✓ Webhook set successfully"
 else
-    echo "❌ Bot failed to start"
-    sudo journalctl -u telegrambot -n 10 --no-pager
-    exit 1
+    echo "⚠️  Warning: Failed to set webhook, but continuing..."
 fi
+
+# Start the bot
+echo "🤖 Launching bot..."
+cd "$SCRIPT_DIR"
+python -m polybot.app
