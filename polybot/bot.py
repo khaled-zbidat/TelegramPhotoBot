@@ -20,7 +20,10 @@ class Bot:
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
 
     def send_text(self, chat_id, text):
-        self.telegram_bot_client.send_message(chat_id, text)
+            try:
+                self.telegram_bot_client.send_message(chat_id, text)
+            except Exception as e:
+                print(f"Error sending message: {e}")
 
     def send_text_with_quote(self, chat_id, text, quoted_msg_id):
         self.telegram_bot_client.send_message(chat_id, text, reply_to_message_id=quoted_msg_id)
