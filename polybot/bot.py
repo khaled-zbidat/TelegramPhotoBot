@@ -85,7 +85,7 @@ class ImageProcessingBot(Bot):
             print("Warning: Message missing 'chat' field, skipping...")
             return
         chat_id = msg['chat']['id']
-        self.send_text(chat_id, f"Hello {msg['chat']['first_name']}! Welcome to the Image Processing Bot.")
+        self.send_text(chat_id, f"Hello {msg['from']['first_name']}! Welcome to the Image Processing Bot.")
 
         if self.is_current_msg_photo(msg):
             try:
