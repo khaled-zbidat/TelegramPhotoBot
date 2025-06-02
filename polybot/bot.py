@@ -4,7 +4,7 @@ import os
 import time
 import tempfile
 from telebot.types import InputFile
-#from polybot.img_proc import Imfgfgfgfgfgfgssssssssss
+#from polybot.img_proc import Imfgfgfgfgfgfgsssssssssss
 from polybot.img_proc import Img
 import requests  
 
