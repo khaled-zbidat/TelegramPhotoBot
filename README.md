@@ -262,7 +262,7 @@ sleep 10
 
 # 3. Set new webhook with drop_pending_updates
 curl -X POST "https://api.telegram.org/bottoken/setWebhook" \
-  -d "url=https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/" \
+  -d "url=https://khaled.fursa.click/bottoken/" \
   -d "drop_pending_updates=true"
 
 # 4. Verify
