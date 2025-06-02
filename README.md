@@ -4,7 +4,10 @@ sudo apt update
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d khaled.fursa.click
 
-
+curl -F "url=https://khaled.fursa.click/webhook" https://api.telegram.org/bot7468193632:AAEsIYPHNx5Ulo6WN7-gYfSA1S-mbOj1xUQ/setWebhook
+{"ok":true,"result":true,"description":"Webhook was set"}
+curl https://api.telegram.org/bot7468193632:AAEsIYPHNx5Ulo6WN7-gYfSA1S-mbOj1xUQ/getWebhookInfo
+{"ok":true,"result":{"url":"https://khaled.fursa.click/webhook","has_custom_certificate":false,"pending_update_count":3,"max_connections":40,"ip_address":"3.68.255.226"}}
 
 
 Excellent! 🎉 You successfully got a valid SSL certificate for `khaled.fursa.click`! Now you need to update your bot configuration to use the new domain.
