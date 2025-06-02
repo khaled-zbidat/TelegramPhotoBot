@@ -72,7 +72,7 @@ class ImageProcessingBot(Bot):
 
     def send_to_yolo_service(self, image_path):
         try:
-            yolo_url = os.getenv("YOLO_SERVICE_URL")
+            yolo_url = os.getenv("YOLO_URL")
             url = yolo_url
             with open(image_path, 'rb') as img_file:
                 files = {'file': img_file}
