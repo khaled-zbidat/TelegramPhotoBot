@@ -1,3 +1,88 @@
+this on claude made it work : the p[roblem wre in teh certificate those 3 linmes made magic : 
+
+sudo apt update
+sudo apt install certbot python3-certbot-nginx
+sudo certbot --nginx -d khaled.fursa.click
+
+
+
+
+Excellent! 🎉 You successfully got a valid SSL certificate for `khaled.fursa.click`! Now you need to update your bot configuration to use the new domain.
+
+## Steps to Complete the Fix:
+
+### 1. Update Your Bot Configuration
+
+You need to update your bot code to use the new domain. Update these files on your **bot server** (not the nginx server):### 2. Update Your Start Script
+
+Update your `start_dev.sh` script:### 3. Commands to Run on Your Bot Server
+
+Run these commands on your **bot server** (ip-10-0-17-41):
+
+```bash
+# Navigate to your project
+cd ~/TelegramPhotoBot/polybot
+
+# Update app.py - replace the old domain with new domain
+sudo sed -i 's/khaled_nginx\.fursa\.click/khaled.fursa.click/g' app.py
+
+# Update start_dev.sh - replace the old domain with new domain  
+sudo sed -i 's/khaled_nginx\.fursa\.click/khaled.fursa.click/g' start_dev.sh
+
+# Update bot.py if it contains the old domain
+sudo sed -i 's/khaled_nginx\.fursa\.click/khaled.fursa.click/g' bot.py
+
+# Check the changes were applied
+grep -r "fursa.click" .
+```
+
+### 4. Set the New Webhook
+
+Now set the webhook with the new valid domain:
+
+```bash
+curl -X POST \
+  "https://api.telegram.org/bot token/setWebhook" \
+  -d "url=https://khaled.fursa.click/bottoken/"
+```
+
+### 5. Restart Your Bot Service
+
+```bash
+sudo systemctl restart polyservice
+```
+
+### 6. Verify Everything is Working
+
+```bash
+# 1. Check webhook info
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
+
+# 2. Test your new domain (should work without -k flag now)
+curl https://khaled.fursa.click/
+
+# 3. Test your webhook endpoint with GET (should return 405 Method Not Allowed - this is correct)
+curl "https://khaled.fursa.click/bottoken/"
+
+# 4. Check if your Flask app is running
+curl http://localhost:8443/
+```
+
+### 7. Test Your Bot
+
+Once everything is updated and restarted:
+1. Open Telegram
+2. Find your bot
+3. Send it a message like "Hello"
+4. Send it a photo with caption "contour"
+
+You should see the bot responding now that you have a valid SSL certificate!
+
+The key changes:
+- ❌ Old: `khaled_nginx.fursa.click` (invalid underscore)
+- ✅ New: `khaled.fursa.click` (valid domain with SSL certificate)]
+
+
 Certaisnly! Here are the essential systemctl commands to manage your telegrambot service on Ubuntu:
 
 🔄 Restart the Servicess
@@ -8,7 +93,7 @@ Copy
 Edit
 sudo systemctl restart telegrambot
 🔄 Reload the Service
-If the service supports reloading its configuration without a full restart:
+If the service supportsxx reloading its configuration without a full restart:
 
 bash
 Copy
@@ -51,6 +136,146 @@ Edit
 systemctl list-unit-files --type=service
 Let me know if you need assistance with creating a script to automate these commands or if you have any other questions!
 
+also this ::::------------------
+::::-------------------------
+:----------------------
+# Fix Telegram Bot SSL Certificate Issue
+
+## Problem Identified
+- Webhook has `"has_custom_certificate": true` but should be `false`
+- SSL certificate verification is failing
+- 13 pending webhook deliveries are queued
+
+## Step 1: Delete Current Webhook (Clean Slate)
+
+On your **bot server** (ip-10-0-17-41):
+
+```bash
+# Delete the current webhook completely
+curl -X POST "https://api.telegram.org/bottoken/deleteWebhook"
+
+# Wait for cleanup
+sleep 10
+
+# Verify it's deleted
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
+```
+
+## Step 2: Test SSL Certificate Properly
+
+```bash
+# Test the SSL certificate from your bot server
+curl -v https://khaled.fursa.click/ 2>&1 | grep -E "(certificate|SSL|TLS)"
+
+# Test from external perspective
+curl -I https://khaled.fursa.click/
+```
+
+## Step 3: Set Webhook Without Custom Certificate
+
+```bash
+# Set webhook using Let's Encrypt certificate (not custom)
+curl -X POST "https://api.telegram.org/bottoken/setWebhook" \
+  -d "url=https://khaled.fursa.click/bottoken/" \
+  -d "drop_pending_updates=true"
+
+# The drop_pending_updates=true will clear the 13 pending updates
+```
+
+## Step 4: Verify Webhook is Set Correctly
+
+```bash
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
+```
+
+**Expected Result:**
+```json
+{
+  "ok": true,
+  "result": {
+    "url": "https://khaled.fursa.click/bottoken/",
+    "has_custom_certificate": false,
+    "pending_update_count": 0,
+    "max_connections": 40
+  }
+}
+```
+
+## Step 5: Fix Connection Stability
+
+On your **bot server**, ensure the service is stable:
+
+```bash
+# Check if service is running consistently
+sudo systemctl status polyservice
+
+# If needed, restart with better stability
+sudo systemctl restart polyservice
+
+# Monitor for connection issues
+sudo journalctl -u polyservice -f
+```
+
+## Step 6: Test Bot Functionality
+
+```bash
+# Test webhook endpoint
+curl -X POST https://khaled.fursa.click/bottoken/ \
+  -H "Content-Type: application/json" \
+  -d '{"message": {"text": "test"}}'
+
+# Should return: {"message":"webhook received"}
+```
+
+## Step 7: Test with Telegram
+
+1. Open Telegram
+2. Find your bot (@photos_filter_bot)
+3. Send: `/start`
+4. Send: `hello`
+5. Send a photo with caption: `contour`
+
+## Why This Happened
+
+The issue occurred because:
+1. **Custom Certificate Flag**: Somehow the webhook was set with a custom certificate flag
+2. **Certificate Mismatch**: Telegram expects the certificate to match exactly
+3. **Pending Updates**: 13 failed webhook attempts were queued, preventing new ones
+
+## Prevention
+
+To avoid this in the future:
+- Always use `drop_pending_updates=true` when setting webhooks after changes
+- Never set custom certificates unless you specifically uploaded one
+- Monitor webhook info regularly with `getWebhookInfo`
+
+## Quick Commands Summary
+
+Run these in order:
+
+```bash
+# 1. Delete webhook
+curl -X POST "https://api.telegram.org/bottoken/deleteWebhook"
+
+# 2. Wait
+sleep 10
+
+# 3. Set new webhook with drop_pending_updates
+curl -X POST "https://api.telegram.org/bottoken/setWebhook" \
+  -d "url=https://khaled.fursa.click/bottoken/" \
+  -d "drop_pending_updates=true"
+
+# 4. Verify
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
+
+# 5. Test bot in Telegram
+```
+
+
+
+------------------------
+--------------------------\
+---------------------------
 
 
 # The Polybot Service: Python Project [![][autotest_badge]][autotest_workflow]

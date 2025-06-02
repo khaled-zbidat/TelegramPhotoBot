@@ -1,12 +1,12 @@
 [Unit]
-Description=Polybot with ngrok integration
+Description=Polybot Telegram Service
 After=network.target
 
 [Service]
 Type=simple
 User=ubuntu
 WorkingDirectory=/home/ubuntu/TelegramPhotoBot
-ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_polybot.sh /home/ubuntu/TelegramPhotoBot
+ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_dev.sh /home/ubuntu/TelegramPhotoBot
 Restart=always
 RestartSec=5
 Environment=PYTHONUNBUFFERED=1

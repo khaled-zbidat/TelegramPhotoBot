@@ -1,84 +1,81 @@
 #!/bin/bash
 set -e
 
-TELEGRAM_TOKEN="$1"
-YOLO_URL="$2"
-NGROK_TOKEN="$3"
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-if [[ -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" ]]; then
-    echo "Usage: $0 <TELEGRAM_TOKEN> <YOLO_URL> [NGROK_TOKEN]"
+echo "🚀 Starting Polybot Enhanced..."
+echo "Script directory: $SCRIPT_DIR"
+echo "Project root: $PROJECT_ROOT"
+
+# Load environment variables from .env file
+ENV_FILE="$SCRIPT_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ ERROR: .env file not found at $ENV_FILE"
     exit 1
 fi
 
-echo "🚀 Starting Telegram Bot..."
+# Source the .env file
+set -a
+source "$ENV_FILE"
+set +a
 
-# Stop service if running
-sudo systemctl stop telegrambot 2>/dev/null || true
-
-# Stop any existing ngrok
-pkill -f 'ngrok http' || true
-sleep 2
-
-# Create environment file in main directory (not polybot)
-cat > .env <<EOF
-TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
-YOLO_SERVICE_URL=$YOLO_URL
-EOF
-
-# Setup ngrok auth if provided
-if [[ -n "$NGROK_TOKEN" ]]; then
-    ngrok config add-authtoken "$NGROK_TOKEN"
-fi
-
-# Start ngrok
-echo "🌐 Starting ngrok tunnel..."
-ngrok http 8443 > /tmp/ngrok.log 2>&1 &
-sleep 5
-
-# Get ngrok URL
-NGROK_URL=""
-for i in {1..10}; do
-    NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels 2>/dev/null | jq -r '.tunnels[]? | select(.proto == "https") | .public_url' 2>/dev/null || true)
-    if [[ -n "$NGROK_URL" && "$NGROK_URL" != "null" ]]; then
-        break
-    fi
-    echo "⏳ Waiting for ngrok... ($i/10)"
-    sleep 2
-done
-
-if [[ -z "$NGROK_URL" || "$NGROK_URL" == "null" ]]; then
-    echo "❌ Failed to get ngrok URL"
-    cat /tmp/ngrok.log
+# Validate required environment variables
+if [[ -z "$TELEGRAM_BOT_TOKEN" ]]; then
+    echo "❌ ERROR: TELEGRAM_BOT_TOKEN not found in .env file"
     exit 1
 fi
 
-echo "🌍 Ngrok URL: $NGROK_URL"
+if [[ -z "$YOLO_URL" ]]; then
+    echo "❌ ERROR: YOLO_URL not found in .env file"
+    exit 1
+fi
 
-# Add ngrok URL to env file in main directory
-echo "BOT_APP_URL=$NGROK_URL" >> .env
+echo "✓ Environment variables loaded successfully"
+echo "✓ TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:0:10}..."
+echo "✓ YOLO_URL: $YOLO_URL"
 
-# Set Telegram webhook
-echo "🔗 Setting webhook..."
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
+# Activate virtual environment
+VENV_PATH="$PROJECT_ROOT/venv"
+if [ ! -f "$VENV_PATH/bin/activate" ]; then
+    echo "❌ ERROR: Virtual environment not found at $VENV_PATH"
+    exit 1
+fi
+
+echo "→ Activating virtual environment..."
+source "$VENV_PATH/bin/activate"
+echo "✓ Virtual environment activated"
+
+# Set webhook URL (replace with your actual NGINX domain)
+WEBHOOK_URL="https://khaled.fursa.click/${TELEGRAM_BOT_TOKEN}/"
+echo "→ Setting webhook URL: $WEBHOOK_URL"
+
 curl -s -X POST \
-    "https://api.telegram.org/bot${TELEGRAM_TOKEN}/setWebhook" \
-    -d "url=${NGROK_URL}/${TELEGRAM_TOKEN}/" > /dev/null
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+    -d "url=$WEBHOOK_URL" > /dev/null
 
-# Start the service
-echo "🚀 Starting bot service..."
-sudo systemctl start telegrambot
-
-# Check if it started
-sleep 3
-if sudo systemctl is-active --quiet telegrambot; then
-    echo "✅ Bot started successfully!"
-    echo "📊 Status:"
-    sudo systemctl status telegrambot --no-pager -l
+if [ $? -eq 0 ]; then
+    echo "✓ Webhook set successfully"
 else
-    echo "❌ Bot failed to start"
-    sudo journalctl -u telegrambot -n 10 --no-pager
-    exit 1
+    echo "⚠️  Warning: Failed to set webhook, but continuing..."
 fi
 
-echo ""
-echo "🎉 Deployment complete!"
-echo "📝 Monitor logs: sudo journalctl -u telegrambot -f"
+# Start the bot
+echo "🤖 Launching bot..."
+# REMOVED: cd "$SCRIPT_DIR" - This was causing the problem!
+# We're already in PROJECT_ROOT which is correcta
+
+# Debugging path info
+echo "=== DEBUG PATH INFO ==="
+echo "Current path: $(pwd)"
+echo "Project root: $PROJECT_ROOT"
+echo "Looking for polybot directory:"
+ls -la | grep polybot
+echo "========================"
+
+# Launch the bot - now from correct directory
+python3 -m polybot.app
