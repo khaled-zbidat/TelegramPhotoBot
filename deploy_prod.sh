@@ -13,8 +13,8 @@ fi
 cd "$PROJECT_DIR"
 
 echo "→ Setting up deployment files..."
-chmod +x deploy.sh
-chmod +x polybot/start_dev.sh
+chmod +x deploy_prod.sh
+chmod +x polybot/start_prod.sh
 
 # Create virtual environment
 VENV_DIR="$PROJECT_DIR/venv"
@@ -42,26 +42,26 @@ echo "  - TELEGRAM_BOT_TOKEN: ${TELEGRAM_TOKEN:0:10}..."
 echo "  - YOLO_URL: $YOLO_URL"
 
 # Stop existing service if running
-sudo systemctl stop polyservice.service 2>/dev/null || echo "Service was not running"
+sudo systemctl stop polyservice_prod.service 2>/dev/null || echo "Service was not running"
 
 # Copy and reload systemd service
 echo "→ Installing systemd service..."
-sudo cp polyservice.service /etc/systemd/system/
+sudo cp polyservice_prod.service /etc/systemd/system/
 sudo systemctl daemon-reload
-sudo systemctl enable polyservice.service
-sudo systemctl start polyservice.service
+sudo systemctl enable polyservice_prod.service
+sudo systemctl start polyservice_prod.service
 
 # Wait a moment for service to start
 sleep 3
 
 # Final check
-if systemctl is-active --quiet polyservice.service; then
+if systemctl is-active --quiet polyservice_prod.service; then
     echo "✅ Service is running successfully!"
     echo "→ Checking service status:"
-    sudo systemctl status polyservice.service --no-pager -l
+    sudo systemctl status polyservice_prod.service --no-pager -l
 else
     echo "❌ Service failed to start:"
-    sudo journalctl -u polyservice.service -n 20 --no-pager
+    sudo journalctl -u polyservice_prod.service -n 20 --no-pager
     exit 1
 fi
 

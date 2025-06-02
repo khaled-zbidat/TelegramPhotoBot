@@ -1,0 +1,18 @@
+[Unit]
+Description=Polybot Telegram Service
+After=network.target
+
+[Service]
+Type=simple
+User=ubuntu
+WorkingDirectory=/home/ubuntu/TelegramPhotoBot
+ExecStart=/bin/bash /home/ubuntu/TelegramPhotoBot/polybot/start_prod.sh /home/ubuntu/TelegramPhotoBot
+Restart=always
+RestartSec=5
+Environment=PYTHONUNBUFFERED=1
+Environment=PATH=/home/ubuntu/TelegramPhotoBot/.venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

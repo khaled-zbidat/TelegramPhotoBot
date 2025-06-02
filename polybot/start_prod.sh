@@ -1,77 +1,81 @@
 #!/bin/bash
-set -x
+set -e
 
-# Parse args
-REPO_DIR="$1"
-TELEGRAM_TOKEN="$2"
-YOLO_URL="$3"
+# Get script directory
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
 
-# Fail fast if required envs are missing
-if [[ -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" ]]; then
-    echo "❌ TELEGRAM_TOKEN and YOLO_URL are required."
+echo "🚀 Starting Polybot Enhanced..."
+echo "Script directory: $SCRIPT_DIR"
+echo "Project root: $PROJECT_ROOT"
+
+# Load environment variables from .env file
+ENV_FILE="$SCRIPT_DIR/.env"
+if [ ! -f "$ENV_FILE" ]; then
+    echo "❌ ERROR: .env file not found at $ENV_FILE"
     exit 1
 fi
 
-SERVICE_NAME="telegrambot"
-SERVICE_FILE="/etc/systemd/system/${SERVICE_NAME}.service"
-ENV_FILE="${REPO_DIR}/polybot/.runtime_env"
-
-# Generate runtime env file
-cat > "$ENV_FILE" <<EOF
-TELEGRAM_BOT_TOKEN=${TELEGRAM_TOKEN}
-YOLO_SERVICE_URL=${YOLO_URL}
-EOF
-
-# Start ngrok if not running
-NGROK_PID=$(pgrep -f 'ngrok http 8443')
-if [ -z "$NGROK_PID" ]; then
-    echo "Starting ngrok on port 8443..."
-    nohup ngrok http 8443 > /dev/null 2>&1 &
-    sleep 3
-else
-    echo "ngrok already running (PID $NGROK_PID)"
-fi
-
-# Get ngrok public HTTPS URL
-NGROK_URL=$(curl -s http://127.0.0.1:4040/api/tunnels | jq -r '.tunnels[] | select(.proto == "https") | .public_url')
-echo "Ngrok public URL: $NGROK_URL"
-echo "BOT_APP_URL=$NGROK_URL" >> "$ENV_FILE"
-
-# Load env vars into current session
+# Source the .env file
 set -a
 source "$ENV_FILE"
 set +a
 
-# Activate virtual environment
-source /home/ubuntu/TelegramPhotoBot/venv/bin/activate
-
-# Create systemd service if not already present
-if [ ! -f "$SERVICE_FILE" ]; then
-    echo "Creating systemd service: $SERVICE_NAME"
-    sudo tee "$SERVICE_FILE" > /dev/null <<EOF
-[Unit]
-Description=Telegram Photo Bot
-After=network.target
-
-[Service]
-ExecStart=/home/ubuntu/TelegramPhotoBot/polybot/start_prod.sh
-WorkingDirectory=/home/ubuntu/TelegramPhotoBot
-Restart=always
-User=ubuntu
-EnvironmentFile=${ENV_FILE}
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-    sudo systemctl daemon-reload
-    sudo systemctl enable $SERVICE_NAME
+# Validate required environment variables
+if [[ -z "$TELEGRAM_BOT_TOKEN" ]]; then
+    echo "❌ ERROR: TELEGRAM_BOT_TOKEN not found in .env file"
+    exit 1
 fi
 
-# Set webhook
-curl -s -F "url=${BOT_APP_URL}/${TELEGRAM_BOT_TOKEN}/" \
-     https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook
+if [[ -z "$YOLO_URL" ]]; then
+    echo "❌ ERROR: YOLO_URL not found in .env file"
+    exit 1
+fi
 
-# Restart service
-echo "Restarting bot service..."
-sudo systemctl restart $SERVICE_NAME
+echo "✓ Environment variables loaded successfully"
+echo "✓ TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN:0:10}..."
+echo "✓ YOLO_URL: $YOLO_URL"
+
+# Change to project root directory
+cd "$PROJECT_ROOT"
+
+# Activate virtual environment
+VENV_PATH="$PROJECT_ROOT/venv"
+if [ ! -f "$VENV_PATH/bin/activate" ]; then
+    echo "❌ ERROR: Virtual environment not found at $VENV_PATH"
+    exit 1
+fi
+
+echo "→ Activating virtual environment..."
+source "$VENV_PATH/bin/activate"
+echo "✓ Virtual environment activated"
+
+# Set webhook URL (replace with your actual NGINX domain)
+WEBHOOK_URL="https://khaled.fursa.click/${TELEGRAM_BOT_TOKEN}/"
+echo "→ Setting webhook URL: $WEBHOOK_URL"
+
+curl -s -X POST \
+    "https://api.telegram.org/bot${TELEGRAM_BOT_TOKEN}/setWebhook" \
+    -d "url=$WEBHOOK_URL" > /dev/null
+
+if [ $? -eq 0 ]; then
+    echo "✓ Webhook set successfully"
+else
+    echo "⚠️  Warning: Failed to set webhook, but continuing..."
+fi
+
+# Start the bot
+echo "🤖 Launching bot..."
+# REMOVED: cd "$SCRIPT_DIR" - This was causing the problem!
+# We're already in PROJECT_ROOT which is correcta
+
+# Debugging path info
+echo "=== DEBUG PATH INFO ==="
+echo "Current path: $(pwd)"
+echo "Project root: $PROJECT_ROOT"
+echo "Looking for polybot directory:"
+ls -la | grep polybot
+echo "========================"
+
+# Launch the bot - now from correct directory
+python3 -m polybot.app
