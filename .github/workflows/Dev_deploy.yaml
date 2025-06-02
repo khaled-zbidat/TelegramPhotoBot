@@ -49,4 +49,6 @@ jobs:
             chmod +x start.sh &&
             bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}
           "
-
+      - name: set prometherus agent on machine 
+        run: |
+          
