@@ -1,9 +1,9 @@
-name: PolyBot Deploy
+name: PolyBot Dev Deploy
 
 on:
   push:
     branches:
-      - 'main'
+      - main
   workflow_dispatch:
 
 env:
@@ -20,7 +20,7 @@ jobs:
       - name: Configure SSH
         env:
           SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.EC2_HOST }}
+          EC2_HOST: ${{ secrets.PROD_EC2_HOST }}
           EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
         run: |
           mkdir -p ~/.ssh
@@ -28,28 +28,27 @@ jobs:
           chmod 600 ~/.ssh/private_key
           cat > ~/.ssh/config << EOF
           Host ec2
-            HostName $EC2_HOST
-            User $EC2_USERNAME
-            IdentityFile ~/.ssh/private_key
-            StrictHostKeyChecking no
+              HostName $EC2_HOST
+              User $EC2_USERNAME
+              IdentityFile ~/.ssh/private_key
+              StrictHostKeyChecking no
           EOF
 
-      - name: Copy and checkout PR branch to EC2
+      - name: Copy and checkout main branch to EC2
         run: |
-          # Clone repository if it doesn't exist, otherwise pull latest changes
-          ssh ec2 "if [ -d ~/${REPO_NAME} ]; then cd ~/${REPO_NAME} &&
-          git stash && 
-          git pull &&
-          echo '✅ Pulled successfully after stashing any local changes'; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
-          
+          ssh ec2 "
+            if [ -d ~/${REPO_NAME} ]; then
+              cd ~/${REPO_NAME} && git checkout main && git reset --hard && git clean -fd && git pull origin main;
+            else
+              git clone -b main ${REPO_URL} ~/${REPO_NAME};
+            fi"
+
+
       - name: Execute deployment script on EC2
         run: |
           ssh ec2 "
             sudo apt update
-            sudo apt install -y python3.12-venv
-            cd ~/${REPO_NAME}/polybot &&
-            chmod +x start_prod.sh &&
-            bash start_prod.sh ~/${REPO_NAME} ${{ secrets.TELEGRAM_TOKEN }} ${{ secrets.YOLO_URL_PROD }}
-          "
-        
+            sudo apt install -y python3.12 python3.12-venv curl jq
 
+            cd ~/${REPO_NAME} && \
+            bash deploy.sh ~/${REPO_NAME} '${{ secrets.PROD_TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_PROD }}'"
