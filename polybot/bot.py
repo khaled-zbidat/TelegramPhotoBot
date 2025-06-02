@@ -4,7 +4,7 @@ import os
 import time
 import tempfile
 from telebot.types import InputFile
-#from polybot.img_proc import Img
+#from polybot.img_proc import Imfgfgfgfgfgfgssssssssss
 from polybot.img_proc import Img
 import requests  
 
@@ -13,11 +13,21 @@ class Bot:
         self.telegram_bot_client = telebot.TeleBot(token)
         self.telegram_bot_client.remove_webhook()
         time.sleep(0.5)
-        self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60)
+        # teh ssl certificat whihc is teh name of is is polybot.crt is in the default ubuntu dir 
+        # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/polybot_dev.crt", 'rb'))
+        self.telegram_bot_client.set_webhook(
+            url=f'{telegram_chat_url}/{token}/',
+            timeout=60
+        )
+
+        # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/TelegramPhotoBot/polybot/poly_cert.crt", 'r'))
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
 
     def send_text(self, chat_id, text):
-        self.telegram_bot_client.send_message(chat_id, text)
+            try:
+                self.telegram_bot_client.send_message(chat_id, text)
+            except Exception as e:
+                print(f"Error sending message: {e}")
 
     def send_text_with_quote(self, chat_id, text, quoted_msg_id):
         self.telegram_bot_client.send_message(chat_id, text, reply_to_message_id=quoted_msg_id)
@@ -62,7 +72,8 @@ class ImageProcessingBot(Bot):
 
     def send_to_yolo_service(self, image_path):
         try:
-            url = "http://10.0.1.187:8667/predict"
+            yolo_url = os.getenv("YOLO_SERVICE_URL")
+            url = yolo_url
             with open(image_path, 'rb') as img_file:
                 files = {'file': img_file}
                 response = requests.post(url, files=files, timeout=5)
@@ -76,8 +87,12 @@ class ImageProcessingBot(Bot):
 
     def handle_message(self, msg):
         logger.info(f'Incoming message: {msg}')
+        # chat_id = msg['chat']['id']# Add error handling for missing chat field
+        if 'chat' not in msg:
+            print("Warning: Message missing 'chat' field, skipping...")
+            return
         chat_id = msg['chat']['id']
-        self.send_text(chat_id, f"Hello {msg['chat']['first_name']}! Welcome to the Image Processing Bot.")
+        self.send_text(chat_id, f"Hello {msg['from']['first_name']}! Welcome to the Image Processing Bot.")
 
         if self.is_current_msg_photo(msg):
             try:

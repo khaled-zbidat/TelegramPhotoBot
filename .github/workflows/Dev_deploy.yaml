@@ -1,9 +1,9 @@
-name: PolyBot Deploy
+name: PolyBot Dev Deploy
 
 on:
   push:
     branches:
-      - 'dev'
+      - dev
   workflow_dispatch:
 
 env:
@@ -28,25 +28,26 @@ jobs:
           chmod 600 ~/.ssh/private_key
           cat > ~/.ssh/config << EOF
           Host ec2
-            HostName $EC2_HOST
-            User $EC2_USERNAME
-            IdentityFile ~/.ssh/private_key
-            StrictHostKeyChecking no
+              HostName $EC2_HOST
+              User $EC2_USERNAME
+              IdentityFile ~/.ssh/private_key
+              StrictHostKeyChecking no
           EOF
 
-      - name: Copy and checkout PR branch to EC2
+      - name: Copy and checkout dev branch to EC2
         run: |
-          # Clone repository if it doesn't exist, otherwise pull latest changes
-          ssh ec2 "if [ -d ~/${REPO_NAME} ]; then cd ~/${REPO_NAME} &&
-          git stash && 
-          git pull &&
-          echo '✅ Pulled successfully after stashing any local changes'; else git clone ${REPO_URL} ~/${REPO_NAME}; fi"
-          
+          ssh ec2 "
+            if [ -d ~/${REPO_NAME} ]; then
+              cd ~/${REPO_NAME} && git checkout dev && git reset --hard && git clean -fd && git pull origin dev;
+            else
+              git clone -b dev ${REPO_URL} ~/${REPO_NAME};
+            fi"
+
       - name: Execute deployment script on EC2
         run: |
           ssh ec2 "
-            cd ~/${REPO_NAME}/polybot &&
-            chmod +x start.sh &&
-            bash start.sh ~/${REPO_NAME} ${{secrets.TELEGRAM_TOKEN}}
-          "
+            sudo apt update
+            sudo apt install -y python3.12 python3.12-venv curl jq
 
+            cd ~/${REPO_NAME} && \
+            bash deploy.sh ~/${REPO_NAME} '${{ secrets.TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_DEV }}'"
