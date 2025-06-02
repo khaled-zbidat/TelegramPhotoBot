@@ -42,8 +42,8 @@ Now set the webhook with the new valid domain:
 
 ```bash
 curl -X POST \
-  "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/setWebhook" \
-  -d "url=https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/"
+  "https://api.telegram.org/bot token/setWebhook" \
+  -d "url=https://khaled.fursa.click/bottoken/"
 ```
 
 ### 5. Restart Your Bot Service
@@ -56,13 +56,13 @@ sudo systemctl restart polyservice
 
 ```bash
 # 1. Check webhook info
-curl "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/getWebhookInfo"
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
 
 # 2. Test your new domain (should work without -k flag now)
 curl https://khaled.fursa.click/
 
 # 3. Test your webhook endpoint with GET (should return 405 Method Not Allowed - this is correct)
-curl "https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/"
+curl "https://khaled.fursa.click/bottoken/"
 
 # 4. Check if your Flask app is running
 curl http://localhost:8443/
@@ -152,13 +152,13 @@ On your **bot server** (ip-10-0-17-41):
 
 ```bash
 # Delete the current webhook completely
-curl -X POST "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/deleteWebhook"
+curl -X POST "https://api.telegram.org/bottoken/deleteWebhook"
 
 # Wait for cleanup
 sleep 10
 
 # Verify it's deleted
-curl "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/getWebhookInfo"
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
 ```
 
 ## Step 2: Test SSL Certificate Properly
@@ -175,8 +175,8 @@ curl -I https://khaled.fursa.click/
 
 ```bash
 # Set webhook using Let's Encrypt certificate (not custom)
-curl -X POST "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/setWebhook" \
-  -d "url=https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/" \
+curl -X POST "https://api.telegram.org/bottoken/setWebhook" \
+  -d "url=https://khaled.fursa.click/bottoken/" \
   -d "drop_pending_updates=true"
 
 # The drop_pending_updates=true will clear the 13 pending updates
@@ -185,7 +185,7 @@ curl -X POST "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkU
 ## Step 4: Verify Webhook is Set Correctly
 
 ```bash
-curl "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/getWebhookInfo"
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
 ```
 
 **Expected Result:**
@@ -193,7 +193,7 @@ curl "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo
 {
   "ok": true,
   "result": {
-    "url": "https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/",
+    "url": "https://khaled.fursa.click/bottoken/",
     "has_custom_certificate": false,
     "pending_update_count": 0,
     "max_connections": 40
@@ -220,7 +220,7 @@ sudo journalctl -u polyservice -f
 
 ```bash
 # Test webhook endpoint
-curl -X POST https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/ \
+curl -X POST https://khaled.fursa.click/bottoken/ \
   -H "Content-Type: application/json" \
   -d '{"message": {"text": "test"}}'
 
@@ -255,18 +255,18 @@ Run these in order:
 
 ```bash
 # 1. Delete webhook
-curl -X POST "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/deleteWebhook"
+curl -X POST "https://api.telegram.org/bottoken/deleteWebhook"
 
 # 2. Wait
 sleep 10
 
 # 3. Set new webhook with drop_pending_updates
-curl -X POST "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/setWebhook" \
+curl -X POST "https://api.telegram.org/bottoken/setWebhook" \
   -d "url=https://khaled.fursa.click/7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/" \
   -d "drop_pending_updates=true"
 
 # 4. Verify
-curl "https://api.telegram.org/bot7468193632:AAHNAI64AUcMcKrrye5z_rEKzkUdEgoRPlo/getWebhookInfo"
+curl "https://api.telegram.org/bottoken/getWebhookInfo"
 
 # 5. Test bot in Telegram
 ```
