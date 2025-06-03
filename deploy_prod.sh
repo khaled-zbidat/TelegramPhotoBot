@@ -23,7 +23,7 @@ if [ ! -f "$VENV_DIR/bin/activate" ]; then
     python3.12 -m venv "$VENV_DIR"
 fi
 
-# Activate and install dependencies
+# Activate and install dependenciess
 echo "→ Activating virtual environment and installing requirements..."
 source "$VENV_DIR/bin/activate"
 pip install --upgrade pip
