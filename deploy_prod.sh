@@ -16,9 +16,12 @@ echo "→ Setting up OpenTelemetry Collector..."
 # Check if OTC is already installed
 if ! command -v otelcol &> /dev/null; then
     echo "→ Installing OpenTelemetry Collector..."
-    wget -q https://github.com/open-telemetry/opentelemetry-collector-releases/releases/latest/download/otelcol_linux_amd64.deb
-    sudo dpkg -i otelcol_linux_amd64.deb || sudo apt-get install -f -y
-    rm -f otelcol_linux_amd64.deb
+    sudo apt-get update
+    sudo apt-get -y install wget
+    wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.127.0/otelcol_0.127.0_linux_amd64.deb
+    sudo dpkg -i otelcol_0.127.0_linux_amd64.deb
+    rm -f otelcol_0.127.0_linux_amd64.deb
+    echo "✓ OpenTelemetry Collector installed successfully"
 else
     echo "✓ OpenTelemetry Collector already installed"
 fi
@@ -41,13 +44,18 @@ receivers:
 exporters:
   prometheus:
     endpoint: "0.0.0.0:8889"
+    resource_to_telemetry_conversion:
+      enabled: true
+    add_metric_suffixes: false
 
 service:
   pipelines:
     metrics:
       receivers: [hostmetrics]
       exporters: [prometheus]
-
+  telemetry:
+    logs:
+      level: warn
 EOF
 
 # Enable and restart OTC service
