@@ -4,10 +4,20 @@ set -e
 PROJECT_DIR="$1"
 TELEGRAM_TOKEN="$2"
 YOLO_URL="$3"
+AWS_ACCESS_KEY_ID="$4"
+AWS_SECRET_ACCESS_KEY="$5"
+S3_BUCKET_NAME="$6"
+AWS_REGION="$7"
 
-if [[ -z "$PROJECT_DIR" || -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" ]]; then
-    echo "Usage: $0 <PROJECT_DIR> <TELEGRAM_TOKEN> <YOLO_URL>"
+if [[ -z "$PROJECT_DIR" || -z "$TELEGRAM_TOKEN" || -z "$YOLO_URL" || -z "$AWS_ACCESS_KEY_ID" || -z "$AWS_SECRET_ACCESS_KEY" || -z "$S3_BUCKET_NAME" ]]; then
+    echo "Usage: $0 <PROJECT_DIR> <TELEGRAM_TOKEN> <YOLO_URL> <AWS_ACCESS_KEY_ID> <AWS_SECRET_ACCESS_KEY> <S3_BUCKET_NAME> [AWS_REGION]"
+    echo "AWS_REGION is optional and defaults to 'us-east-1'"
     exit 1
+fi
+
+# Set default AWS region if not provided
+if [[ -z "$AWS_REGION" ]]; then
+    AWS_REGION="us-east-1"
 fi
 
 cd "$PROJECT_DIR"
@@ -93,11 +103,18 @@ echo "→ Writing environment file: $ENV_FILE"
 cat > "$ENV_FILE" << EOF
 TELEGRAM_BOT_TOKEN=$TELEGRAM_TOKEN
 YOLO_URL=$YOLO_URL
+AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID
+AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY
+S3_BUCKET_NAME=$S3_BUCKET_NAME
+AWS_REGION=$AWS_REGION
 EOF
 
 echo "✓ Environment file created with:"
 echo "  - TELEGRAM_BOT_TOKEN: ${TELEGRAM_TOKEN:0:10}..."
 echo "  - YOLO_URL: $YOLO_URL"
+echo "  - AWS_ACCESS_KEY_ID: ${AWS_ACCESS_KEY_ID:0:10}..."
+echo "  - S3_BUCKET_NAME: $S3_BUCKET_NAME"
+echo "  - AWS_REGION: $AWS_REGION"
 
 # Stop existing service if running
 sudo systemctl stop polyservice.service 2>/dev/null || echo "Service was not running"

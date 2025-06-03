@@ -51,4 +51,4 @@ jobs:
             sudo apt install -y python3.12 python3.12-venv curl jq
 
             cd ~/${REPO_NAME} && \
-            bash deploy.sh ~/${REPO_NAME} '${{ secrets.PROD_TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_PROD }}'"
+            bash deploy_prod.sh ~/${REPO_NAME} '${{ secrets.PROD_TELEGRAM_TOKEN }}' '${{ secrets.YOLO_URL_PROD }}' '${{ secrets.AWS_ACCESS_KEY_ID }}' '${{ secrets.AWS_SECRET_ACCESS_KEY }}' '${{ secrets.S3_BUCKET_NAME }}' '${{ secrets.AWS_REGION }}'

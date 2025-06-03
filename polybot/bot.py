@@ -4,30 +4,29 @@ import os
 import time
 import tempfile
 from telebot.types import InputFile
-#from polybot.img_proc import Imfgfgfgfgfgfgsssssssssss hhhhhhh
 from polybot.img_proc import Img
-import requests  
+import requests
+import boto3
+from botocore.exceptions import ClientError
+import uuid
+from datetime import datetime
 
 class Bot:
     def __init__(self, token, telegram_chat_url):
         self.telegram_bot_client = telebot.TeleBot(token)
         self.telegram_bot_client.remove_webhook()
         time.sleep(0.5)
-        # teh ssl certificat whihc is teh name of is is polybot.crt is in the default ubuntu dir 
-        # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/polybot_dev.crt", 'rb'))
         self.telegram_bot_client.set_webhook(
             url=f'{telegram_chat_url}/{token}/',
             timeout=60
         )
-
-        # self.telegram_bot_client.set_webhook(url=f'{telegram_chat_url}/{token}/', timeout=60 , certificate=open("/home/ubuntu/TelegramPhotoBot/polybot/poly_cert.crt", 'r'))
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
 
     def send_text(self, chat_id, text):
-            try:
-                self.telegram_bot_client.send_message(chat_id, text)
-            except Exception as e:
-                print(f"Error sending message: {e}")
+        try:
+            self.telegram_bot_client.send_message(chat_id, text)
+        except Exception as e:
+            print(f"Error sending message: {e}")
 
     def send_text_with_quote(self, chat_id, text, quoted_msg_id):
         self.telegram_bot_client.send_message(chat_id, text, reply_to_message_id=quoted_msg_id)
@@ -69,28 +68,73 @@ class ImageProcessingBot(Bot):
     def __init__(self, token, telegram_chat_url):
         super().__init__(token, telegram_chat_url)
         self.concat_buffer = {}
+        
+        # Initialize S3 client
+        self.s3_client = boto3.client(
+            's3',
+            aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
+            aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
+            region_name=os.getenv('AWS_REGION', 'us-east-1')
+        )
+        self.s3_bucket = os.getenv('S3_BUCKET_NAME')
+        
+        if not all([os.getenv('AWS_ACCESS_KEY_ID'), os.getenv('AWS_SECRET_ACCESS_KEY'), self.s3_bucket]):
+            logger.error("Missing AWS credentials or S3 bucket name in environment variables")
+            raise ValueError("AWS S3 configuration is incomplete")
 
-    def send_to_yolo_service(self, image_path):
+    def upload_to_s3(self, file_path, object_name=None):
+        """Upload a file to S3 bucket"""
+        if object_name is None:
+            # Generate unique filename with timestamp and UUID
+            timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+            unique_id = str(uuid.uuid4())[:8]
+            file_extension = os.path.splitext(file_path)[1]
+            object_name = f"images/{timestamp}_{unique_id}{file_extension}"
+
+        try:
+            self.s3_client.upload_file(file_path, self.s3_bucket, object_name)
+            logger.info(f"File uploaded successfully to S3: {object_name}")
+            return object_name
+        except ClientError as e:
+            logger.error(f"Failed to upload file to S3: {e}")
+            return None
+
+    def download_from_s3(self, object_name, local_path):
+        """Download a file from S3 bucket"""
+        try:
+            self.s3_client.download_file(self.s3_bucket, object_name, local_path)
+            logger.info(f"File downloaded successfully from S3: {object_name}")
+            return True
+        except ClientError as e:
+            logger.error(f"Failed to download file from S3: {e}")
+            return False
+
+    def send_to_yolo_service(self, image_name):
+        """Send image name to YOLO service instead of image file"""
         try:
             yolo_url = os.getenv("YOLO_URL")
-            url = yolo_url
-            with open(image_path, 'rb') as img_file:
-                files = {'file': img_file}
-                response = requests.post(url, files=files, timeout=5)
+            
+            # Send only the image name in the request body
+            payload = {"image_name": image_name}
+            
+            response = requests.post(yolo_url, json=payload, timeout=30)
+            
             if response.status_code == 200:
                 return response.text
             else:
+                logger.error(f"YOLO service returned status {response.status_code}: {response.text}")
                 return "Prediction failed: YOLO service returned non-200 status."
         except Exception as e:
-            logger.error(f"Failed to get prediction from YOLO EC2: {str(e)}")
+            logger.error(f"Failed to get prediction from YOLO service: {str(e)}")
             return "Prediction failed due to server error."
 
     def handle_message(self, msg):
         logger.info(f'Incoming message: {msg}')
-        # chat_id = msg['chat']['id']# Add error handling for missing chat field
+        
         if 'chat' not in msg:
             print("Warning: Message missing 'chat' field, skipping...")
             return
+        
         chat_id = msg['chat']['id']
         self.send_text(chat_id, f"Hello {msg['from']['first_name']}! Welcome to the Image Processing Bot.")
 
@@ -119,12 +163,23 @@ class ImageProcessingBot(Bot):
                     self.send_text(chat_id, f"Invalid filter. Available: {', '.join(f.title() for f in available_filters)}")
                     return
 
+                # Download the photo locally first
                 photo_path = self.download_user_photo(msg)
                 logger.info(f'Photo downloaded to: {photo_path}')
 
+                # Upload image to S3
+                self.send_text(chat_id, "Uploading image to S3...")
+                s3_object_name = self.upload_to_s3(photo_path)
+                
+                if not s3_object_name:
+                    self.send_text(chat_id, "Failed to upload image to S3. Please try again.")
+                    return
+
+                logger.info(f'Image uploaded to S3: {s3_object_name}')
+
                 if matched_filter == 'predict':
                     self.send_text(chat_id, "Sending image to YOLO prediction service...")
-                    prediction_result = self.send_to_yolo_service(photo_path)
+                    prediction_result = self.send_to_yolo_service(s3_object_name)
                     self.send_text(chat_id, f"Prediction: {prediction_result}")
 
                 elif matched_filter != 'concat':
@@ -155,21 +210,39 @@ class ImageProcessingBot(Bot):
 
                     output_path = os.path.join(tempfile.gettempdir(), os.path.basename(photo_path).split('.')[0] + '_filtered.jpg')
                     new_image_path = img.save_img(output_path)
+                    
+                    # Upload processed image to S3
+                    processed_s3_name = self.upload_to_s3(new_image_path)
+                    if processed_s3_name:
+                        logger.info(f'Processed image uploaded to S3: {processed_s3_name}')
+                    
                     self.send_photo(chat_id, new_image_path)
 
-                else:
+                else:  # concat
                     if chat_id in self.concat_buffer:
-                        first_path = self.concat_buffer.pop(chat_id)
-                        img1 = Img(first_path)
-                        img2 = Img(photo_path)
-                        img1.concat(img2)
-                        output_path = os.path.join(tempfile.gettempdir(), f'concat_{int(time.time())}.jpg')
-                        result = img1.save_img(output_path)
-                        self.send_text(chat_id, "Images concatenated successfully!")
-                        self.send_photo(chat_id, result)
+                        first_s3_name = self.concat_buffer.pop(chat_id)
+                        
+                        # Download first image from S3
+                        first_temp_path = os.path.join(tempfile.gettempdir(), f'concat_first_{int(time.time())}.jpg')
+                        if self.download_from_s3(first_s3_name, first_temp_path):
+                            img1 = Img(first_temp_path)
+                            img2 = Img(photo_path)
+                            img1.concat(img2)
+                            output_path = os.path.join(tempfile.gettempdir(), f'concat_{int(time.time())}.jpg')
+                            result = img1.save_img(output_path)
+                            
+                            # Upload concatenated image to S3
+                            concat_s3_name = self.upload_to_s3(result)
+                            if concat_s3_name:
+                                logger.info(f'Concatenated image uploaded to S3: {concat_s3_name}')
+                            
+                            self.send_text(chat_id, "Images concatenated successfully!")
+                            self.send_photo(chat_id, result)
+                        else:
+                            self.send_text(chat_id, "Failed to download first image from S3.")
                     else:
-                        self.concat_buffer[chat_id] = photo_path
-                        self.send_text(chat_id, "First image received. Please send the second image with caption 'concat'.")
+                        self.concat_buffer[chat_id] = s3_object_name
+                        self.send_text(chat_id, "First image received and uploaded to S3. Please send the second image with caption 'concat'.")
 
             except Exception as e:
                 logger.error(f"Error processing image: {str(e)}")
