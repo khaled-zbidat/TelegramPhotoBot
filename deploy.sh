@@ -12,6 +12,64 @@ fi
 
 cd "$PROJECT_DIR"
 
+echo "→ Setting up OpenTelemetry Collector..."
+# Check if OTC is already installed
+if ! command -v otelcol &> /dev/null; then
+    echo "→ Installing OpenTelemetry Collector..."
+    sudo apt-get update
+    sudo apt-get -y install wget
+    wget https://github.com/open-telemetry/opentelemetry-collector-releases/releases/download/v0.127.0/otelcol_0.127.0_linux_amd64.deb
+    sudo dpkg -i otelcol_0.127.0_linux_amd64.deb
+    rm -f otelcol_0.127.0_linux_amd64.deb
+    echo "✓ OpenTelemetry Collector installed successfully"
+else
+    echo "✓ OpenTelemetry Collector already installed"
+fi
+
+# Configure OTC for dev environment
+echo "→ Configuring OpenTelemetry Collector for DEV environment..."
+sudo tee /etc/otelcol/config.yaml > /dev/null << 'EOF'
+receivers:
+  hostmetrics:
+    collection_interval: 15s
+    scrapers:
+      cpu:
+      memory:
+      disk:
+      filesystem:
+      load:
+      network:
+      processes:
+
+exporters:
+  prometheus:
+    endpoint: "0.0.0.0:8889"
+    resource_to_telemetry_conversion:
+      enabled: true
+    add_metric_suffixes: false
+
+service:
+  pipelines:
+    metrics:
+      receivers: [hostmetrics]
+      exporters: [prometheus]
+  telemetry:
+    logs:
+      level: info
+EOF
+
+# Enable and restart OTC service
+sudo systemctl enable otelcol
+sudo systemctl restart otelcol
+
+# Verify OTC is running
+if systemctl is-active --quiet otelcol; then
+    echo "✓ OpenTelemetry Collector is running on port 8889"
+else
+    echo "⚠️  Warning: OpenTelemetry Collector failed to start"
+    sudo journalctl -u otelcol -n 10 --no-pager
+fi
+
 echo "→ Setting up deployment files..."
 chmod +x deploy.sh
 chmod +x polybot/start_dev.sh
@@ -66,3 +124,4 @@ else
 fi
 
 echo "🎉 Deployment completed!"
+echo "📊 Metrics available at: http://$(curl -s ifconfig.me):8889/metrics"
