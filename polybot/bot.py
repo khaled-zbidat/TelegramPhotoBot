@@ -26,7 +26,7 @@ class Bot:
         try:
             self.telegram_bot_client.send_message(chat_id, text)
         except Exception as e:
-            print(f"Error sending message: {e}")
+            logger.error(f"Error sending message: {e}")
 
     def send_text_with_quote(self, chat_id, text, quoted_msg_id):
         self.telegram_bot_client.send_message(chat_id, text, reply_to_message_id=quoted_msg_id)
@@ -74,7 +74,7 @@ class ImageProcessingBot(Bot):
             's3',
             aws_access_key_id=os.getenv('AWS_ACCESS_KEY_ID'),
             aws_secret_access_key=os.getenv('AWS_SECRET_ACCESS_KEY'),
-            region_name=os.getenv('AWS_REGION', 'us-east-1')
+            region_name=os.getenv('AWS_REGION', 'eu-central-1')
         )
         self.s3_bucket = os.getenv('S3_BUCKET_NAME')
         
@@ -113,17 +113,49 @@ class ImageProcessingBot(Bot):
         """Send image name to YOLO service instead of image file"""
         try:
             yolo_url = os.getenv("YOLO_URL")
+            if not yolo_url:
+                logger.error("YOLO_URL environment variable not set")
+                return "Configuration error: YOLO service URL not set"
             
-            # Send only the image name in the request body
-            payload = {"image_name": image_name}
+            # Send both image name and bucket name in the request body
+            payload = {
+                "image_name": image_name,
+                "bucket_name": self.s3_bucket
+            }
             
-            response = requests.post(yolo_url, json=payload, timeout=30)
+            headers = {
+                'Content-Type': 'application/json'
+            }
+            
+            logger.info(f"Sending request to YOLO service with payload: {payload}")
+            response = requests.post(yolo_url, json=payload, headers=headers, timeout=30)
             
             if response.status_code == 200:
-                return response.text
+                result = response.json()
+                # Format the detection results into a readable message
+                detections = result.get('detections', [])
+                if not detections:
+                    return "No objects detected in the image."
+                
+                # Create a summary of detected objects
+                detection_summary = []
+                for det in detections:
+                    label = det['label']
+                    confidence = det['confidence']
+                    detection_summary.append(f"{label} ({confidence:.2%})")
+                
+                # Get the predicted image S3 key
+                predicted_s3_key = result.get('s3_predicted_key')
+                if predicted_s3_key:
+                    # Download the predicted image
+                    predicted_local_path = os.path.join(tempfile.gettempdir(), f'predicted_{os.path.basename(image_name)}')
+                    if self.download_from_s3(predicted_s3_key, predicted_local_path):
+                        return detection_summary, predicted_local_path
+                
+                return "Detected objects:\n" + "\n".join(f"• {item}" for item in detection_summary)
             else:
                 logger.error(f"YOLO service returned status {response.status_code}: {response.text}")
-                return "Prediction failed: YOLO service returned non-200 status."
+                return f"Prediction failed: YOLO service returned status {response.status_code}"
         except Exception as e:
             logger.error(f"Failed to get prediction from YOLO service: {str(e)}")
             return "Prediction failed due to server error."
@@ -132,7 +164,7 @@ class ImageProcessingBot(Bot):
         logger.info(f'Incoming message: {msg}')
         
         if 'chat' not in msg:
-            print("Warning: Message missing 'chat' field, skipping...")
+            logger.warning("Message missing 'chat' field, skipping...")
             return
         
         chat_id = msg['chat']['id']
@@ -180,7 +212,14 @@ class ImageProcessingBot(Bot):
                 if matched_filter == 'predict':
                     self.send_text(chat_id, "Sending image to YOLO prediction service...")
                     prediction_result = self.send_to_yolo_service(s3_object_name)
-                    self.send_text(chat_id, f"Prediction: {prediction_result}")
+                    
+                    # Check if we got back both detection results and predicted image
+                    if isinstance(prediction_result, tuple):
+                        detection_text, predicted_image_path = prediction_result
+                        self.send_text(chat_id, detection_text)
+                        self.send_photo(chat_id, predicted_image_path)
+                    else:
+                        self.send_text(chat_id, prediction_result)
 
                 elif matched_filter != 'concat':
                     img = Img(photo_path)
@@ -269,4 +308,4 @@ class ImageProcessingBot(Bot):
                 self.send_text(chat_id, "Please send a photo with a caption. Type /help for filter options.")
 
         else:
-            self.send_text(chat_id, "I can only process photo messages.")
+            self.send_text(chat_id, "I can only process photo messages.") 
