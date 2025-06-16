@@ -19,7 +19,7 @@ class Bot:
         self.telegram_bot_client.set_webhook(
             url=f'{telegram_chat_url}/{token}/',
             timeout=60,
-            certificate=open("/home/ubuntu/polybot-dev.crt", 'r')
+            certificate=open("/app/polybot-prod.crt", 'r')
         )
         logger.info(f'Telegram Bot information\n\n{self.telegram_bot_client.get_me()}')
 
