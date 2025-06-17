@@ -7,7 +7,7 @@ from polybot.bot import Bot, ImageProcessingBot
 app = flask.Flask(__name__)
 
 TELEGRAM_BOT_TOKEN = os.environ['TELEGRAM_BOT_TOKEN']
-BOT_APP_URL = "https://khalednginx.fursa.click"
+BOT_APP_URL = "https://khaled.fursa.click"
 # BOT_APP_URL = os.environ['BOT_APP_URL']
 
 
@@ -24,5 +24,5 @@ def webhook():
 
 
 if __name__ == "__main__":
-    bot = ImageProcessingBot(TELEGRAM_BOT_TOKEN,"https://khalednginx.fursa.click")
+    bot = ImageProcessingBot(TELEGRAM_BOT_TOKEN,"https://khaled.fursa.click")
     app.run(host='0.0.0.0', port=8443)

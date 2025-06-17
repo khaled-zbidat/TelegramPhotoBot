@@ -1,31 +1,79 @@
-name: PolyBot Dev Deploy
+# GitHub Actions workflow for building and deploying Polybot to production environment
+name: Polybot Build and Deploy Main
 
+# Trigger this workflow when code is pushed to the main branch
 on:
   push:
     branches:
-      - main
-  workflow_dispatch:
+     - main
 
-env:
-  REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git
-  REPO_NAME: ${{ github.event.repository.name }}
-
+# Define jobs that will run in this workflow
 jobs:
-  Deploy:
-    runs-on: ubuntu-latest
+  # First job: Build Docker image and push to DockerHub
+  Build:
+    runs-on: ubuntu-latest  # Use Ubuntu runner for build process
+    outputs:
+      # Output the image name to pass to the deploy job
+      image: ${{ steps.build-image.outputs.image }}
     steps:
+     # Step 1: Checkout the repository code
+     - uses: actions/checkout@v4
+     
+     # Step 2: Build and push Docker image to DockerHub
+     - name: Build Docker image
+       id: build-image  # Give this step an ID to reference its outputs
+       env:
+          # Set environment variables from GitHub secrets for Docker login
+          DOCKER_USERNAME: ${{ secrets.DOCKERHUB_USERNAME }}
+          DOCKER_PASSWORD: ${{ secrets.DOCKERHUB_TOKEN }}
+       run: |
+         # Login to DockerHub using credentials from secrets
+         docker login -u "${{ secrets.DOCKERHUB_USERNAME }}" -p "${{ secrets.DOCKERHUB_TOKEN }}"
+         
+         # Create image name with DockerHub username and build number tag
+         img_name=${{ secrets.DOCKERHUB_USERNAME }}/polybot-prod:${{github.run_number}}
+         # Create shorter image name for output (without username prefix)
+         img_name1=/polybot-prod:${{github.run_number}}
+         
+         # Set output variable to pass image name to deploy job
+         echo "image=$img_name1" >> $GITHUB_OUTPUT
+          
+         # Build Docker image and push to DockerHub registry
+         docker build --push -t $img_name  .
+
+  # Second job: Deploy the built image to EC2 production server
+  Deploy:
+    needs: Build  # This job depends on Build job completing successfully
+    runs-on: ubuntu-latest  # Use Ubuntu runner for deployment
+    
+    # Set environment variables for repository information
+    env:
+      REPO_URL: ${{ github.server_url }}/${{ github.repository }}.git  # Git repository URL
+      REPO_NAME: ${{ github.event.repository.name }}  # Repository name
+    
+    steps:
+      # Step 1: Checkout repository code for deployment files
       - name: Checkout code
         uses: actions/checkout@v4
-
+      
+      # Step 2: Configure SSH connection to EC2 instance
       - name: Configure SSH
         env:
-          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}
-          EC2_HOST: ${{ secrets.PROD_EC2_HOST }}
-          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}
+          # Set environment variables from GitHub secrets
+          SSH_PRIVATE_KEY: ${{ secrets.SSH_PRIVATE_KEY }}  # Private key for SSH authentication
+          PROD_EC2_HOST: ${{ secrets.PROD_EC2_HOST}}  # EC2 instance hostname/IP (renamed from PROD_EC2_HOST)
+          EC2_USERNAME: ${{ secrets.EC2_USERNAME }}  # Username for EC2 SSH connection
+          PROD_TELEGRAM_TOKEN: ${{secrets.PROD_TELEGRAM_TOKEN}}  # Telegram bot token (renamed from TELEGRAM_TOKEN_prod)
+          YOLO_URL_PROD: ${{secrets.YOLO_URL_PROD}}  # YOLO service URL (renamed from YOLO_IP_Prod)
+          S3_BUCKET_NAME: ${{secrets.S3_BUCKET_NAME}}  # S3 bucket name (renamed from AWS_S3_BUCKET_prod)
         run: |
+          # Create SSH directory if it doesn't exist
           mkdir -p ~/.ssh
+          # Write private key to file for SSH authentication
           echo "$SSH_PRIVATE_KEY" > ~/.ssh/private_key
+          # Set proper permissions on private key file (read-only for owner)
           chmod 600 ~/.ssh/private_key
+          # Create SSH config file with connection settings
           cat > ~/.ssh/config << EOF
           Host ec2
               HostName $EC2_HOST
@@ -33,23 +81,65 @@ jobs:
               IdentityFile ~/.ssh/private_key
               StrictHostKeyChecking no
           EOF
-
-      - name: Copy and checkout main branch to EC2
-        run: |
-          ssh ec2 "
-            if [ -d ~/${REPO_NAME} ]; then
-              cd ~/${REPO_NAME} && git checkout main && git reset --hard && git clean -fd && git pull origin main;
-            else
-              git clone -b main ${REPO_URL} ~/${REPO_NAME};
-            fi"
-
-
+      
+      # Step 3: Deploy application to EC2 instance
       - name: Execute deployment script on EC2
         run: |
-          ssh ec2 "
-            sudo apt update
-            sudo apt install -y python3.12 python3.12-venv curl jq
-
-            cd ~/${REPO_NAME} && \
-            bash deploy_prod.sh ~/${REPO_NAME} "${{ secrets.PROD_TELEGRAM_TOKEN }}" "${{ secrets.YOLO_URL_PROD }}" "${{ secrets.AWS_ACCESS_KEY_ID }}" "${{ secrets.AWS_SECRET_ACCESS_KEY }}" "${{ secrets.S3_BUCKET_NAME }}" "${{ secrets.AWS_REGION }}"
-          "
+          # Log the Docker image name being deployed
+          echo "This is the image name :- ${{ needs.Build.outputs.image }}"
+          
+          # Generate .env file with environment variables for the application
+          echo "IMG_NAME=khaled2infinity${{ needs.Build.outputs.image }}" > .env  # Docker image name (updated username)
+          echo "TELEGRAM_BOT_TOKEN=${{ secrets.PROD_TELEGRAM_TOKEN }}" >> .env  # Telegram bot authentication token
+          echo "YOLO_URL=${{ secrets.YOLO_URL_PROD }}" >> .env  # YOLO service endpoint URL (fixed name)
+          echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env  # AWS S3 bucket for file storage
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env  # AWS access key ID
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env  # AWS secret access key
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env  # AWS region
+          echo "TYPE_ENV=prod" >> .env  # Environment type identifier
+          
+          # Copy configuration files to EC2 instance via SCP
+          scp .env docker-compose.prod.yaml otelcol-config.yaml ec2:~/
+          
+          # SSH into EC2 instance and execute deployment commands
+          ssh ec2 '
+            # Update package manager repositories
+            sudo apt-get update
+            
+            # Check if Docker is installed, install if not present
+            if ! command -v docker &> /dev/null; then
+              echo "Installing Docker..."
+              # Update package repositories again
+              sudo apt-get update
+              # Install prerequisite packages for Docker installation
+              sudo apt-get install -y ca-certificates curl
+              # Create directory for Docker GPG key
+              sudo install -m 0755 -d /etc/apt/keyrings
+              # Download Docker GPG key for package verification
+              sudo curl -fsSL https://download.docker.com/linux/ubuntu/gpg -o /etc/apt/keyrings/docker.asc
+              # Set proper permissions on GPG key
+              sudo chmod a+r /etc/apt/keyrings/docker.asc
+              # Add Docker repository to apt sources (single line to avoid SSH escaping issues)
+              echo "deb [arch=$(dpkg --print-architecture) signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/ubuntu $(. /etc/os-release && echo ${UBUNTU_CODENAME:-$VERSION_CODENAME}) stable" | sudo tee /etc/apt/sources.list.d/docker.list > /dev/null
+              # Update package repositories with Docker repo
+              sudo apt-get update
+              # Install Docker and related components
+              sudo apt-get install -y docker-ce docker-ce-cli containerd.io docker-buildx-plugin docker-compose-plugin
+            else
+              # Docker already installed, skip installation
+              echo "Docker already installed."
+            fi
+            
+            # Verify Docker installation was successful
+            if ! command -v docker &> /dev/null; then
+              echo "Docker installation failed or not found. Exiting."
+              exit 1
+            fi
+            
+            # Start application deployment using Docker Compose
+            echo "Starting Docker Compose services..."
+            # Pull latest Docker images specified in compose file
+            sudo docker compose -f docker-compose.prod.yaml pull
+            # Start all services defined in compose file in detached mode
+            sudo docker compose -f docker-compose.prod.yaml up -d
+          '
