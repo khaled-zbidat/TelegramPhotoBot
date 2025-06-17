@@ -1,5 +1,6 @@
 this on claude made it work : the p[roblem wre in teh certificate those 3 linmes made magic : 
-
+dsfsdgdfgdfgdfgdfdfgdfgdf
+fgdfgdfgdfgdfgdf
 sudo apt update
 sudo apt install certbot python3-certbot-nginx
 sudo certbot --nginx -d khaled.fursa.click
