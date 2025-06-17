@@ -91,8 +91,11 @@ jobs:
           # Generate .env file with environment variables for the application
           echo "IMG_NAME=khaled2infinity${{ needs.Build.outputs.image }}" > .env  # Docker image name (updated username)
           echo "TELEGRAM_BOT_TOKEN=${{ secrets.TELEGRAM_TOKEN }}" >> .env  # Telegram bot authentication token
-          echo "YOLO_IP=${{ secrets.YOLO_URL_DEV }}" >> .env  # YOLO service endpoint URL
-          echo "AWS_S3_BUCKET=${{ secrets.S3_BUCKET_NAME }}" >> .env  # AWS S3 bucket for file storage
+          echo "YOLO_URL=${{ secrets.YOLO_URL_DEV }}" >> .env  # YOLO service endpoint URL (fixed name)
+          echo "S3_BUCKET_NAME=${{ secrets.S3_BUCKET_NAME }}" >> .env  # AWS S3 bucket for file storage
+          echo "AWS_ACCESS_KEY_ID=${{ secrets.AWS_ACCESS_KEY_ID }}" >> .env  # AWS access key ID
+          echo "AWS_SECRET_ACCESS_KEY=${{ secrets.AWS_SECRET_ACCESS_KEY }}" >> .env  # AWS secret access key
+          echo "AWS_REGION=${{ secrets.AWS_REGION }}" >> .env  # AWS region
           echo "TYPE_ENV=dev" >> .env  # Environment type identifier
           
           # Copy configuration files to EC2 instance via SCP
