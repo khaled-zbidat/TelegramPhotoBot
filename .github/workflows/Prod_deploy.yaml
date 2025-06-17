@@ -76,7 +76,7 @@ jobs:
           # Create SSH config file with connection settings
           cat > ~/.ssh/config << EOF
           Host ec2
-              HostName $EC2_HOST
+              HostName $PROD_EC2_HOST
               User $EC2_USERNAME
               IdentityFile ~/.ssh/private_key
               StrictHostKeyChecking no
