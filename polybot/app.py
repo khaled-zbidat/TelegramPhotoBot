@@ -25,5 +25,6 @@ def webhook():
 
 if __name__ == "__main__":
     bot = ImageProcessingBot(TELEGRAM_BOT_TOKEN,"https://khalednginx.fursa.click")
-
-    app.run(host='0.0.0.0', port=8443)
+    cert_path = '/app/polybot-dev.crt'
+    context = ssl.SSLContext(ssl.PROTOCOL_TLSv1_2)
+    app.run(host='0.0.0.0', port=8443, ssl_context=context)
