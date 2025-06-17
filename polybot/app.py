@@ -2,7 +2,7 @@ import flask
 from flask import request
 import os
 from polybot.bot import Bot, ImageProcessingBot
-#from bot import Bot, QuoteBot, ImagessProcesssssingBot
+#from bot import Bot, QuoteBot, ImagessProcesssssingBotddddddd
 #S3 update 1 1
 app = flask.Flask(__name__)
 
@@ -25,5 +25,4 @@ def webhook():
 
 if __name__ == "__main__":
     bot = ImageProcessingBot(TELEGRAM_BOT_TOKEN,"https://khaled.fursa.click")
-
     app.run(host='0.0.0.0', port=8443)
