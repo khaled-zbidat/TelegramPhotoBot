@@ -6,16 +6,16 @@ services:
     env_file:
       - .env
     restart: unless-stopped
-    ports:
-      - "8443:8443"
+    network_mode: host
     volumes:
       - /home/ubuntu/polybot-dev.crt:/app/polybot-dev.crt
+    environment:
+      # Make sure your app binds to 0.0.0.0:8443, not just localhost:8443
+      - BIND_HOST=0.0.0.0
 
   otelcol:
     image: otel/opentelemetry-collector-contrib:latest
     command: [ "--config=/etc/otelcol/config.yaml" ]
-    ports:
-      - "8889:8889"  
     volumes:
       - ./otelcol-config.yaml:/etc/otelcol/config.yaml
       # Mount host filesystem to allow the collector to access host metrics
